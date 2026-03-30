@@ -1,0 +1,166 @@
+这是一个非常经典的**跨平台桌面应用开发**场景。由于前端是 Next.js (React)，后端是 Python，且打包为桌面应用（通常使用 Electron、Tauri 或 PyWebView），这决定了前后端的通信不再是传统的 HTTP REST API，而是 **IPC（进程间通信）** 或 **本地 RPC（远程过程调用）**。
+
+为了满足你对**高扩展性、易维护性**以及**领域驱动设计（DDD）**的要求，我们需要采用**“按特性分包（Package by Feature）”**结合**“洋葱架构/六边形架构”**的思路。
+
+下面我为你规划的 `workflows` 项目整体架构树和开发规范。
+
+---
+
+### 一、 整体目录结构规划
+
+项目根目录包含 `frontend` 和 `backend`。我们不按技术层（所有的 controllers、所有的 models）去分文件夹，而是**按业务领域（模块）**去分文件夹。
+
+```text
+workflows/
+├── frontend/               # Next.js 前端代码
+│   ├── src/
+│   │   ├── app/            # Next.js App Router (页面路由层，仅负责页面组装)
+│   │   ├── core/           # 前端核心基建 (IPC 通信封装、全局 Store、基础 UI 组件库等)
+│   │   └── features/       # 前端业务模块 (严格按业务划分)
+│   ├── package.json
+│   └── next.config.js
+│
+└── backend/                # Python 后端代码
+    ├── core/               # 后端核心基建 (配置管理、依赖注入、事件总线、IPC 路由基类)
+    ├── modules/            # DDD 领域模块 (核心业务逻辑)
+    │   ├── workflow_engine/# [领域一] 工作流引擎领域
+    │   ├── nodes_market/   # [领域二] 节点市场领域
+    │   └── settings/       # [领域三] 系统设置领域
+    ├── requirements.txt
+    └── main.py             # 后端应用入口 (负责启动 IPC 服务并注册各模块路由)
+```
+
+---
+
+### 二、 Python 后端架构设计 (DDD 深度解析)
+
+在后端 `modules` 下的每一个业务文件夹（如 `workflow_engine`），都是一个**独立的上下文（Bounded Context）**。它的内部必须严格遵循 DDD 的四层架构：
+
+#### 2.1 模块内部目录结构示范：`backend/modules/workflow_engine/`
+
+```text
+workflow_engine/
+├── domain/                 # 1. 领域层 (最核心，绝对不能依赖外部任何库，纯 Python)
+│   ├── entities.py         # 业务实体 (如 Workflow, Node, Edge)
+│   ├── value_objects.py    # 值对象 (如 NodeCoordinates 坐标)
+│   ├── exceptions.py       # 领域异常 (如 NodeConnectError)
+│   └── repositories.py     # 仓储接口定义 (抽象基类 ABC，不写具体实现)
+│
+├── application/            # 2. 应用层 (负责业务流程编排)
+│   ├── use_cases.py        # 用例 (如 CreateWorkflow, ExecuteWorkflow)
+│   └── dto.py              # 数据传输对象 (入参和出参的数据校验，可使用 Pydantic)
+│
+├── infrastructure/         # 3. 基础设施层 (具体实现领域层的接口)
+│   ├── sqlite_repo.py      # SQLite 数据库的具体存取实现
+│   └── file_storage.py     # 本地文件系统的具体实现
+│
+└── presentation/           # 4. 表现层/接口层 (与前端交互的入口)
+    └── ipc_handlers.py     # 接收前端直接调用的函数 (桌面应用专属，替代 Controller)
+```
+
+#### 2.2 DDD 依赖规则（防腐原则）
+* **Domain 层**：是绝对独立的老大，不引入 `sqlite3`，不引入 `ipc`。只写纯逻辑。
+* **Application 层**：只能依赖 Domain 层。它调用 Domain 实体，并通过 Domain 提供的接口（Repository）保存数据。
+* **Infrastructure 层**：依赖 Domain 层（实现其接口）。
+* **Presentation 层**：依赖 Application 层。将前端传来的 IPC 消息解析为 DTO，丢给 UseCase 处理。
+
+---
+
+### 三、 Next.js 前端架构设计 (模块化开发)
+
+前端不强调严格的四层 DDD，但要保持**高内聚低耦合**。我们将业务代码集中在 `src/features/` 中。
+
+#### 3.1 模块内部目录结构示范：`frontend/src/features/workflow_engine/`
+
+```text
+workflow_engine/
+├── components/             # 该领域专属的 React UI 组件 (如 Canvas, NodeItem)
+├── hooks/                  # 自定义 Hook (封装页面业务逻辑，如 useWorkflowExecution)
+├── store/                  # 该领域的局部状态管理 (Zustand / Redux Slice)
+├── types/                  # TypeScript 类型定义 (与后端的 DTO 保持一致)
+└── services/               # 基础设施层：封装调用 Python 后端的 IPC 函数
+    └── ipcClient.ts        
+```
+
+#### 3.2 页面层的组装：`frontend/src/app/`
+`app/` 目录下的页面仅仅是一个**壳子**，不要在里面写复杂的逻辑，而是引入 `features` 里的组件：
+```tsx
+// frontend/src/app/workflow/[id]/page.tsx
+import { WorkflowEditor } from '@/features/workflow_engine/components/WorkflowEditor';
+
+export default function Page({ params }) {
+  return <WorkflowEditor workflowId={params.id} />;
+}
+```
+
+---
+
+### 四、 "无 API，直接调用" 是如何实现的？
+
+既然是桌面应用（无 HTTP API），你需要一个 **IPC 通信桥梁**。假设你使用的是 `Electron + Python` 或 `Tauri + Python`：
+
+1. **后端核心 (backend/core/ipc_router.py)**:
+   实现一个类似于路由注册器的东西，虽然不是 HTTP，但也是通过命令名字来调用函数。
+   ```python
+   # 伪代码
+   class IPCServer:
+       def __init__(self):
+           self.routes = {}
+
+       def register(self, command_name, handler):
+           self.routes[command_name] = handler
+
+       def handle_message(self, command_name, payload):
+           return self.routes[command_name](payload)
+   ```
+
+2. **后端表现层 (backend/modules/workflow_engine/presentation/ipc_handlers.py)**:
+   ```python
+   from core.ipc_router import router
+   from ..application.use_cases import CreateWorkflowUseCase
+
+   @router.register("workflow.create")
+   def handle_create_workflow(payload: dict):
+       # 1. 解析参数
+       # 2. 调用应用层
+       use_case = CreateWorkflowUseCase(...)
+       result = use_case.execute(payload['name'])
+       # 3. 返回给前端
+       return {"status": "success", "data": result}
+   ```
+
+3. **前端服务层 (frontend/src/features/workflow_engine/services/ipcClient.ts)**:
+   ```typescript
+   // 封装底层通信，业务代码不要直接碰 window.electron 或 window.__TAURI__
+   import { invokeBackend } from '@/core/ipc/bridge'; 
+
+   export async function createWorkflow(name: string): Promise<Workflow> {
+       return await invokeBackend('workflow.create', { name });
+   }
+   ```
+
+---
+
+### 五、 后续新增功能的开发指南（完美避开改动老代码）
+
+**场景假设**：现在项目上线了，你需要新增一个功能模块——**“大模型 AI 节点 (LLM Nodes)”**。
+
+由于采用了 DDD 和功能分包，你**完全不需要修改**现有的 `workflow_engine` 文件夹，遵循以下步骤：
+
+#### 后端新增步骤：
+1. 在 `backend/modules/` 下新建 `llm_nodes/` 文件夹。
+2. 在 `llm_nodes/domain/` 定义 `LLMNode` 实体（它可能继承自 Core 基类的接口）。
+3. 在 `llm_nodes/infrastructure/` 引入外部 AI API 相关的逻辑（如 OpenAI SDK）。
+4. 在 `llm_nodes/presentation/ipc_handlers.py` 中注册新的 IPC 路由，例如 `llm.generate`。
+5. 在 `backend/main.py` 中引入并注册 `llm_nodes` 的 router（这是**唯一**需要改动老代码的地方，增加一行 import）。
+
+#### 前端新增步骤：
+1. 在 `frontend/src/features/` 下新建 `llm_nodes/` 文件夹。
+2. 在 `services/` 下编写调用 `llm.generate` 的 IPC 方法。
+3. 在 `components/` 开发 AI 专属的 UI 配置面板。
+4. 在 `frontend/src/features/workflow_engine/` 中预留**插件系统（Plugin Registry）**机制。将新的 AI 节点组件“注册”进去，而不是硬编码写死在老代码里。（这符合**开闭原则 OCP：对扩展开放，对修改关闭**）。
+
+### 总结建议
+1. **防腐层极其重要**：不管桌面端打包工具用 Tauri 还是 Electron，都要把“通信方式”封装在 `core/` 里。以后如果从桌面端改成 Web 端，你只需要重写 `presentation` 的 IPC 处理为 FastAPI HTTP 路由，**`domain` 和 `application` 一行代码都不用改**。
+2. **状态管理分离**：前端的组件只负责渲染，把数据的获取和更新放到 `hooks` 中，把状态存到 `store` 里。
+3. **依赖注入 (DI)**：在 Python 后端使用 `dependency_injector` 等库。让 Application 层的用例在初始化时注入数据库的具体实现，这样测试或者替换底层存储时，不需要改业务代码。

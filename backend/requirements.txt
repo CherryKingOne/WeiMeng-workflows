@@ -1,0 +1,3 @@
+# The bootstrap backend skeleton currently runs on the Python standard library.
+# Add third-party dependencies here as each infrastructure adapter is implemented.
+
