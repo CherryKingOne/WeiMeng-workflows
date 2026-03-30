@@ -105,7 +105,7 @@ function WorkspaceContent() {
   const handleAddCard = useCallback((type: "image" | "text" | "video", canvasPosition: { x: number; y: number }) => {
     const newCard: CardItem = {
       id: `card-${Date.now()}`,
-      type,
+      type: type === "video" ? "video-generation" : type,
       position: canvasPosition,
     };
     setCards((prev) => [...prev, newCard]);
@@ -153,26 +153,31 @@ function WorkspaceContent() {
 
   // 处理生成按钮点击（从 ImageGenerationCard 触发）
   const handleGenerate = useCallback((generationCardId: string) => {
-    // 创建结果卡片，放在生成卡片的右侧
     const resultCardId = `card-${Date.now()}`;
-    
+
     setCards((prevCards) => {
       const generationCard = prevCards.find(c => c.id === generationCardId);
       if (!generationCard) {
         console.log('未找到生成卡片:', generationCardId);
         return prevCards;
       }
-      
+
+      const isVideoGeneration = generationCard.type === "video-generation";
       const newCard: CardItem = {
         id: resultCardId,
-        type: "image-result",
-        position: {
-          x: generationCard.position.x + 540, // 生成卡片宽度 + 间距
-          y: generationCard.position.y + 60, // 垂直对齐
-        },
+        type: isVideoGeneration ? "video-result" : "image-result",
+        position: isVideoGeneration
+          ? {
+              x: generationCard.position.x + 600,
+              y: generationCard.position.y + 110,
+            }
+          : {
+              x: generationCard.position.x + 540,
+              y: generationCard.position.y + 60,
+            },
         isGenerating: true,
       };
-      
+
       return [...prevCards, newCard];
     });
     
@@ -206,6 +211,24 @@ function WorkspaceContent() {
     );
   }, [connections]);
 
+  // 处理侧边栏视频点击 - 添加视频生成卡片
+  const handleVideoClick = useCallback(() => {
+    console.log('handleVideoClick called');
+    // 在画布中心位置添加视频生成卡片
+    const newCard: CardItem = {
+      id: `card-${Date.now()}`,
+      type: "video-generation",
+      position: { x: 1500, y: 1200 }, // 画布中心位置
+    };
+    console.log('Creating video card:', newCard);
+    setCards((prev) => {
+      const newCards = [...prev, newCard];
+      console.log('New cards array:', newCards);
+      return newCards;
+    });
+    setFocusedCardId(newCard.id);
+  }, []);
+
   return (
     <main className={`h-screen w-screen overflow-hidden font-sans select-none canvas-page ${
       isDark ? "text-gray-300" : "text-gray-700"
@@ -233,7 +256,7 @@ function WorkspaceContent() {
       />
 
       {/* 左侧工具栏 */}
-      <CanvasSidebar />
+      <CanvasSidebar onVideoClick={handleVideoClick} />
 
       {/* 左下角帮助按钮 */}
       <HelpButton />

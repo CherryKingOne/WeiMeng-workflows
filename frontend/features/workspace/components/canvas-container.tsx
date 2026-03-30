@@ -4,6 +4,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { ImageInputCard } from "./image-input-card";
 import { ImageGenerationCard } from "./image-generation-card";
 import { ImageResultCard } from "./image-result-card";
+import { VideoGenerationCard } from "./video-generation-card";
+import { VideoResultCard } from "./video-result-card";
 
 const IMAGE_INPUT_CARD_WIDTH = 320;
 const IMAGE_INPUT_CARD_HEIGHT = 320;
@@ -14,10 +16,16 @@ const IMAGE_GENERATION_CARD_HEADER_OFFSET = 46;
 const IMAGE_RESULT_CARD_WIDTH = 260;
 const IMAGE_RESULT_CARD_HEIGHT = 260;
 const IMAGE_RESULT_CARD_HEADER_OFFSET = 24;
+const VIDEO_GENERATION_CARD_WIDTH = 540;
+const VIDEO_GENERATION_CARD_HEIGHT = 420;
+const VIDEO_GENERATION_CARD_HEADER_OFFSET = 40;
+const VIDEO_RESULT_CARD_WIDTH = 320;
+const VIDEO_RESULT_CARD_HEIGHT = 180;
+const VIDEO_RESULT_CARD_HEADER_OFFSET = 24;
 
 export interface CardItem {
   id: string;
-  type: "image" | "text" | "video" | "image-generation" | "image-result";
+  type: "image" | "text" | "video" | "video-generation" | "image-generation" | "image-result" | "video-result";
   position: { x: number; y: number };
   // 连接关系：此卡片连接到哪个卡片
   connectedTo?: string;
@@ -87,6 +95,55 @@ export function CanvasContainer({
 
   // SVG 连接线 ref
   const svgRef = useRef<SVGSVGElement>(null);
+
+  const getCardDimensions = useCallback((type: CardItem["type"]) => {
+    switch (type) {
+      case "image":
+        return {
+          width: IMAGE_INPUT_CARD_WIDTH,
+          height: IMAGE_INPUT_CARD_HEIGHT,
+          headerOffset: IMAGE_INPUT_CARD_HEADER_OFFSET,
+        };
+      case "image-generation":
+        return {
+          width: IMAGE_GENERATION_CARD_WIDTH,
+          height: IMAGE_GENERATION_CARD_HEIGHT,
+          headerOffset: IMAGE_GENERATION_CARD_HEADER_OFFSET,
+        };
+      case "image-result":
+        return {
+          width: IMAGE_RESULT_CARD_WIDTH,
+          height: IMAGE_RESULT_CARD_HEIGHT,
+          headerOffset: IMAGE_RESULT_CARD_HEADER_OFFSET,
+        };
+      case "video-generation":
+        return {
+          width: VIDEO_GENERATION_CARD_WIDTH,
+          height: VIDEO_GENERATION_CARD_HEIGHT,
+          headerOffset: VIDEO_GENERATION_CARD_HEADER_OFFSET,
+        };
+      case "video-result":
+        return {
+          width: VIDEO_RESULT_CARD_WIDTH,
+          height: VIDEO_RESULT_CARD_HEIGHT,
+          headerOffset: VIDEO_RESULT_CARD_HEADER_OFFSET,
+        };
+      default:
+        return null;
+    }
+  }, []);
+
+  const getAnchorPosition = useCallback((card: CardItem, position: { x: number; y: number }, side: "input" | "output") => {
+    const dimensions = getCardDimensions(card.type);
+    if (!dimensions) {
+      return null;
+    }
+
+    return {
+      x: offset.x + position.x + (side === "output" ? dimensions.width : 0),
+      y: offset.y + position.y + dimensions.headerOffset + dimensions.height / 2,
+    };
+  }, [getCardDimensions, offset.x, offset.y]);
 
   // 更新画布位置
   const updateCanvasPosition = useCallback((newOffset: { x: number; y: number }) => {
@@ -174,46 +231,25 @@ export function CanvasContainer({
       
       if (!otherCard || !currentCard) return;
       
-      // 计算锚点位置
-      let fromX: number, fromY: number, toX: number, toY: number;
-      
-      if (isFromCard) {
-        // 当前卡片是起点
-        if (currentCard.type === "image") {
-          fromX = offset.x + newX + IMAGE_INPUT_CARD_WIDTH;
-          fromY = offset.y + newY + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2;
-        } else {
-          fromX = offset.x + newX + IMAGE_GENERATION_CARD_WIDTH;
-          fromY = offset.y + newY + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2;
-        }
-        
-        // 另一张卡片作为终点
-        if (otherCard.type === "image") {
-          toX = offset.x + otherCard.position.x;
-          toY = offset.y + otherCard.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2;
-        } else {
-          toX = offset.x + otherCard.position.x;
-          toY = offset.y + otherCard.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2;
-        }
-      } else {
-        // 当前卡片是终点
-        if (otherCard.type === "image") {
-          fromX = offset.x + otherCard.position.x + IMAGE_INPUT_CARD_WIDTH;
-          fromY = offset.y + otherCard.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2;
-        } else {
-          fromX = offset.x + otherCard.position.x + IMAGE_GENERATION_CARD_WIDTH;
-          fromY = offset.y + otherCard.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2;
-        }
-        
-        // 当前卡片作为终点
-        if (currentCard.type === "image") {
-          toX = offset.x + newX;
-          toY = offset.y + newY + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2;
-        } else {
-          toX = offset.x + newX;
-          toY = offset.y + newY + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2;
-        }
+      const movedCardAnchor = getAnchorPosition(
+        currentCard,
+        { x: newX, y: newY },
+        isFromCard ? "output" : "input"
+      );
+      const otherCardAnchor = getAnchorPosition(
+        otherCard,
+        otherCard.position,
+        isFromCard ? "input" : "output"
+      );
+
+      if (!movedCardAnchor || !otherCardAnchor) {
+        return;
       }
+
+      const fromX = isFromCard ? movedCardAnchor.x : otherCardAnchor.x;
+      const fromY = isFromCard ? movedCardAnchor.y : otherCardAnchor.y;
+      const toX = isFromCard ? otherCardAnchor.x : movedCardAnchor.x;
+      const toY = isFromCard ? otherCardAnchor.y : movedCardAnchor.y;
       
       // 生成贝塞尔曲线路径
       const dx = toX - fromX;
@@ -307,6 +343,20 @@ export function CanvasContainer({
       };
     }
 
+    if (card.type === "video-generation") {
+      return {
+        x: offset.x + card.position.x + VIDEO_GENERATION_CARD_WIDTH,
+        y: offset.y + card.position.y + VIDEO_GENERATION_CARD_HEADER_OFFSET + VIDEO_GENERATION_CARD_HEIGHT / 2,
+      };
+    }
+
+    if (card.type === "video-result") {
+      return {
+        x: offset.x + card.position.x + VIDEO_RESULT_CARD_WIDTH,
+        y: offset.y + card.position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2,
+      };
+    }
+
     return null;
   }, [offset.x, offset.y]);
 
@@ -329,6 +379,20 @@ export function CanvasContainer({
       return {
         x: offset.x + card.position.x,
         y: offset.y + card.position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2,
+      };
+    }
+
+    if (card.type === "video-generation") {
+      return {
+        x: offset.x + card.position.x,
+        y: offset.y + card.position.y + VIDEO_GENERATION_CARD_HEADER_OFFSET + VIDEO_GENERATION_CARD_HEIGHT / 2,
+      };
+    }
+
+    if (card.type === "video-result") {
+      return {
+        x: offset.x + card.position.x,
+        y: offset.y + card.position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2,
       };
     }
 
@@ -415,14 +479,6 @@ export function CanvasContainer({
                   stroke="#52525b"
                   strokeWidth="2"
                   strokeLinecap="round"
-                />
-                {/* 连接点圆圈 - 在曲线中点 */}
-                <circle
-                  data-connection-circle={`${connection.fromId}-${connection.toId}`}
-                  cx={(line.fromX + line.toX) / 2}
-                  cy={(line.fromY + line.toY) / 2}
-                  r="4"
-                  fill="#52525b"
                 />
               </g>
             );
@@ -511,6 +567,59 @@ export function CanvasContainer({
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   isGenerating={card.isGenerating}
                   onGenerationComplete={() => onGenerationComplete?.(card.id)}
+                />
+              </div>
+            );
+          }
+
+          if (card.type === "video-result") {
+            return (
+              <div
+                key={card.id}
+                data-card
+                data-card-id={card.id}
+                className="pointer-events-auto"
+                style={{
+                  position: "absolute",
+                  left: offset.x + card.position.x,
+                  top: offset.y + card.position.y,
+                }}
+              >
+                <VideoResultCard
+                  id={card.id}
+                  onRemove={onRemoveCard}
+                  onFocus={onCardFocus}
+                  isFocused={focusedCardId === card.id}
+                  onDragStart={(e) => handleCardDragStart(card.id, e)}
+                  isGenerating={card.isGenerating}
+                  onGenerationComplete={() => onGenerationComplete?.(card.id)}
+                />
+              </div>
+            );
+          }
+          
+          // 视频生成卡片
+          if (card.type === "video-generation") {
+            return (
+              <div
+                key={card.id}
+                data-card
+                data-card-id={card.id}
+                className="pointer-events-auto"
+                style={{
+                  position: "absolute",
+                  left: offset.x + card.position.x,
+                  top: offset.y + card.position.y,
+                }}
+              >
+                <VideoGenerationCard
+                  id={card.id}
+                  onRemove={onRemoveCard}
+                  onFocus={onCardFocus}
+                  isFocused={focusedCardId === card.id}
+                  onDragStart={(e) => handleCardDragStart(card.id, e)}
+                  isGenerating={generatingCards.has(card.id)}
+                  onGenerate={onGenerate}
                 />
               </div>
             );

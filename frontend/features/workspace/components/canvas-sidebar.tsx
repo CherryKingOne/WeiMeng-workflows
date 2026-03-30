@@ -9,6 +9,10 @@ interface SidebarTool {
   onClick?: () => void;
 }
 
+interface CanvasSidebarProps {
+  onVideoClick?: () => void;
+}
+
 const tools: SidebarTool[] = [
   {
     id: "menu",
@@ -185,9 +189,18 @@ const tools: SidebarTool[] = [
   },
 ];
 
-export function CanvasSidebar() {
+export function CanvasSidebar({ onVideoClick }: CanvasSidebarProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+
+  // 处理工具点击
+  const handleToolClick = (toolId: string) => {
+    console.log('handleToolClick called with toolId:', toolId);
+    if (toolId === "video") {
+      console.log('Calling onVideoClick');
+      onVideoClick?.();
+    }
+  };
 
   return (
     <aside className="fixed left-4 top-20 bottom-20 z-20 flex flex-col glass-panel py-2 px-1.5 rounded-xl shadow-2xl max-h-[calc(100vh-160px)]">
@@ -204,7 +217,10 @@ export function CanvasSidebar() {
                   : "hover:bg-black/5 text-gray-500 hover:text-gray-900"
               }`}
               title={tool.label}
-              onClick={tool.onClick}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToolClick(tool.id);
+              }}
             >
               {tool.icon}
             </button>

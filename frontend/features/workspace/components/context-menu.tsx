@@ -524,9 +524,13 @@ export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMen
                   if (item.id === "image" && onAddCard) {
                     onAddCard("image", { x: 1900, y: 1400 });
                   }
-                  // 处理其他菜单项点击
+                  // 处理文字菜单项点击
                   if (item.id === "text" && onAddCard) {
                     onAddCard("text", { x: 1900, y: 1400 });
+                  }
+                  // 处理视频菜单项点击
+                  if (item.id === "video" && onAddCard) {
+                    onAddCard("video", { x: 1700, y: 1300 });
                   }
                   onClose();
                 }
