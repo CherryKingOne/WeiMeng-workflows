@@ -39,6 +39,9 @@ import type {
   SettingsUpdateRequest,
   SettingsUpdateResponse,
   IPCResponse,
+  ClearCacheResult,
+  FileFilter,
+  FileBase64Result,
 } from "./types";
 
 /**
@@ -316,11 +319,6 @@ export async function selectDirectory(title?: string): Promise<string> {
  * const result = await clearCache();
  * console.log(result.message); // "已清理 5 个文件/文件夹"
  */
-export interface ClearCacheResult {
-  deleted_count: number;
-  message: string;
-}
-
 export async function clearCache(): Promise<ClearCacheResult> {
   const bridge = getDesktopBridge();
   if (!bridge) {
@@ -337,4 +335,74 @@ export async function clearCache(): Promise<ClearCacheResult> {
   }
 
   return response.data!;
+}
+
+/**
+ * ============================================================
+ * 选择文件对话框
+ * ============================================================
+ * 调用 Electron 的系统对话框让用户选择文件
+ *
+ * @param title - 对话框标题
+ * @param filters - 文件类型过滤器
+ * @returns 用户选择的文件路径，如果取消则返回空字符串
+ *
+ * @example
+ * const path = await selectFile("选择图片", [{name: 'Images', extensions: ['jpg', 'png']}]);
+ */
+export async function selectFile(title?: string, filters?: FileFilter[]): Promise<string> {
+  const bridge = getDesktopBridge();
+  if (!bridge || !bridge.selectFile) {
+    throw new Error("Desktop bridge 不支持选择文件功能");
+  }
+
+  const result = await bridge.selectFile(title || "选择文件", filters);
+  
+  if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+    return "";
+  }
+  
+  return result.filePaths[0];
+}
+
+/**
+ * ============================================================
+ * 读取文件并转换为 Base64
+ * ============================================================
+ * 将文件读取为 Base64 编码，用于在前端预览
+ *
+ * @param filePath - 文件的绝对路径
+ * @returns 文件的 Base64 编码和元数据
+ *
+ * @example
+ * const result = await readFileAsBase64("/path/to/image.jpg");
+ * // result = {
+ * //   base64: "data:image/jpeg;base64,/9j/4AAQ...",
+ * //   mime_type: "image/jpeg",
+ * //   file_name: "image.jpg",
+ * //   file_size: 102400
+ * // }
+ * // 前端使用: <img src={result.base64} />
+ */
+export async function readFileAsBase64(filePath: string): Promise<FileBase64Result> {
+  const bridge = getDesktopBridge();
+  if (!bridge) {
+    throw new Error("Desktop bridge 未初始化");
+  }
+
+  const response = await bridge.invoke<IPCResponse<FileBase64Result>>(
+    "settings.readFileAsBase64",
+    { path: filePath }
+  );
+
+  if (response.status === "error") {
+    throw new Error(response.message || "读取文件失败");
+  }
+
+  // 组合成 data URL 格式
+  const data = response.data!;
+  return {
+    ...data,
+    base64: `data:${data.mime_type};base64,${data.base64}`,
+  };
 }

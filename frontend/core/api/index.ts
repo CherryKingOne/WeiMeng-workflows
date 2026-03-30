@@ -98,6 +98,8 @@ export {
   getCacheDir,
   setCacheDir,
   selectDirectory,
+  selectFile,
+  readFileAsBase64,
   clearCache,
 } from "./settings-service";
 export type {
@@ -106,8 +108,10 @@ export type {
   SettingsUpdateResponse,
   SettingScope,
   DirectorySettings,
+  FileFilter,
+  FileBase64Result,
+  ClearCacheResult,
 } from "./types";
-export type { ClearCacheResult } from "./settings-service";
 
 // Nodes Market 节点市场服务
 export { nodesMarketService } from "./nodes-market-service";

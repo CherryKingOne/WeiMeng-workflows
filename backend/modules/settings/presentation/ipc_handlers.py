@@ -1,5 +1,6 @@
 """Settings IPC handlers."""
 
+import base64
 import shutil
 from pathlib import Path
 
@@ -72,7 +73,6 @@ def register_handlers(router: IPCRouter, container: ApplicationContainer) -> Non
         
         try:
             deleted_count = 0
-            # 遍历目录下的所有文件和文件夹（不删除目录本身）
             for item in cache_path.iterdir():
                 if item.is_file():
                     item.unlink()
@@ -91,6 +91,40 @@ def register_handlers(router: IPCRouter, container: ApplicationContainer) -> Non
         except Exception as e:
             return {"status": "error", "message": f"清理失败: {str(e)}"}
 
+    def handle_read_file_as_base64(payload: dict[str, object]) -> dict[str, object]:
+        """读取文件并转换为 Base64 编码"""
+        file_path = str(payload.get("path", "")).strip()
+        
+        if not file_path:
+            return {"status": "error", "message": "文件路径不能为空"}
+        
+        path = Path(file_path)
+        
+        if not path.exists():
+            return {"status": "error", "message": "文件不存在"}
+        
+        if not path.is_file():
+            return {"status": "error", "message": "路径不是文件"}
+        
+        try:
+            with open(path, "rb") as f:
+                file_data = base64.b64encode(f.read()).decode("utf-8")
+            
+            # 获取文件 MIME 类型
+            mime_type = _get_mime_type(path.suffix.lower())
+            
+            return {
+                "status": "success",
+                "data": {
+                    "base64": file_data,
+                    "mime_type": mime_type,
+                    "file_name": path.name,
+                    "file_size": path.stat().st_size,
+                }
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"读取文件失败: {str(e)}"}
+
     router.register("settings.list", handle_list_settings)
     router.register("settings.update", handle_update_setting)
     router.register("settings.getDownloadDir", handle_get_download_dir)
@@ -98,3 +132,28 @@ def register_handlers(router: IPCRouter, container: ApplicationContainer) -> Non
     router.register("settings.getCacheDir", handle_get_cache_dir)
     router.register("settings.setCacheDir", handle_set_cache_dir)
     router.register("settings.clearCache", handle_clear_cache)
+    router.register("settings.readFileAsBase64", handle_read_file_as_base64)
+
+
+def _get_mime_type(extension: str) -> str:
+    """根据文件扩展名获取 MIME 类型"""
+    mime_types = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+        ".svg": "image/svg+xml",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".mov": "video/quicktime",
+        ".avi": "video/x-msvideo",
+        ".mkv": "video/x-matroska",
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".ogg": "audio/ogg",
+        ".flac": "audio/flac",
+        ".aac": "audio/aac",
+    }
+    return mime_types.get(extension, "application/octet-stream")

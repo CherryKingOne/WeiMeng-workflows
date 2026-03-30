@@ -34,6 +34,7 @@ let mainWindow = null;
 
 // Python 后端进程
 let pythonProcess = null;
+let pythonStdoutBuffer = "";
 
 /**
  * ============================================================
@@ -62,24 +63,27 @@ function startPythonBackend() {
   });
 
   // 输出 Python 后台日志
+  pythonStdoutBuffer = "";
   pythonProcess.stdout.on("data", (data) => {
-    const lines = data.toString().split("\n").filter((line) => line.trim());
-    lines.forEach((line) => {
-      try {
-        // 尝试解析 JSON-RPC 响应
-        const parsed = JSON.parse(line);
-        if (parsed.id !== undefined) {
-          // 这是 JSON-RPC 响应，找到对应的请求
-          handlePythonResponse(parsed);
-        } else {
-          // 这是普通日志
+    pythonStdoutBuffer += data.toString();
+    const lines = pythonStdoutBuffer.split("\n");
+    pythonStdoutBuffer = lines.pop() || "";
+
+    lines
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((line) => {
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.id !== undefined) {
+            handlePythonResponse(parsed);
+          } else {
+            console.log(`[Python] ${line}`);
+          }
+        } catch {
           console.log(`[Python] ${line}`);
         }
-      } catch {
-        // 不是 JSON，普通日志
-        console.log(`[Python] ${line}`);
-      }
-    });
+      });
   });
 
   pythonProcess.stderr.on("data", (data) => {
@@ -88,6 +92,13 @@ function startPythonBackend() {
 
   pythonProcess.on("close", (code) => {
     console.log(`[Electron] Python 进程退出，code: ${code}`);
+    pythonStdoutBuffer = "";
+
+    for (const [id, pending] of pendingRequests.entries()) {
+      clearTimeout(pending.timeout);
+      pending.reject(new Error(`Python 进程已退出，未完成请求: ${id}`));
+      pendingRequests.delete(id);
+    }
   });
 
   pythonProcess.on("error", (err) => {
@@ -130,6 +141,34 @@ function sendToPython(channel, payload) {
     const requestStr = JSON.stringify(request) + "\n";
     pythonProcess.stdin.write(requestStr);
   });
+}
+
+function summarizeForLog(value) {
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value.length > 200 ? `${value.slice(0, 200)}... [${value.length} chars]` : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => summarizeForLog(item));
+  }
+
+  if (typeof value === "object") {
+    const summary = {};
+    for (const [key, item] of Object.entries(value)) {
+      if (key === "base64" && typeof item === "string") {
+        summary[key] = `[base64 omitted, ${item.length} chars]`;
+        continue;
+      }
+      summary[key] = summarizeForLog(item);
+    }
+    return summary;
+  }
+
+  return value;
 }
 
 /**
@@ -239,7 +278,7 @@ function createWindow() {
 function setupIPC() {
   // 处理前端调用
   ipcMain.handle("invoke", async (event, channel, payload) => {
-    console.log(`[IPC] 收到请求: ${channel}`, payload);
+    console.log(`[IPC] 收到请求: ${channel}`, summarizeForLog(payload));
 
     // 如果 Python 进程未启动，启动它
     if (!pythonProcess || pythonProcess.exitCode !== null) {
@@ -250,7 +289,7 @@ function setupIPC() {
 
     try {
       const result = await sendToPython(channel, payload);
-      console.log(`[IPC] ${channel} 返回:`, result);
+      console.log(`[IPC] ${channel} 返回:`, summarizeForLog(result));
       return result;
     } catch (error) {
       console.error(`[IPC] ${channel} 错误:`, error.message);
@@ -290,6 +329,21 @@ function setupIPC() {
     const result = await dialog.showOpenDialog(mainWindow, {
       title: title || "选择目录",
       properties: ["openDirectory", "createDirectory"],
+    });
+    return result;
+  });
+
+  // 选择文件
+  ipcMain.handle("dialog:selectFile", async (event, title, filters) => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: title || "选择文件",
+      properties: ["openFile"],
+      filters: filters || [
+        { name: "Images", extensions: ["jpg", "jpeg", "png", "gif", "webp", "bmp"] },
+        { name: "Videos", extensions: ["mp4", "webm", "mov", "avi", "mkv"] },
+        { name: "Audio", extensions: ["mp3", "wav", "ogg", "flac", "aac"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
     });
     return result;
   });

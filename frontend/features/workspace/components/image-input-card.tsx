@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useTheme } from "@/features/theme/theme-context";
+import { selectFile, readFileAsBase64, type FileBase64Result } from "@/core/api";
 
 // 弧形菜单工具项
 const arcMenuTools = [
@@ -56,12 +57,14 @@ export function ImageInputCard({
   const isDark = theme === "dark";
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // 卡片状态：default - 默认态, interactive - 交互态, focused - 激活态
-  const [status, setStatus] = useState<"default" | "interactive" | "focused">("default");
+  // 卡片状态：default - 默认态, interactive - 交互态（显示+按钮）, expanded - 展开态（显示工具组）
+  const [status, setStatus] = useState<"default" | "interactive" | "expanded">("default");
   const [isDragging, setIsDragging] = useState(false);
+  const [imageData, setImageData] = useState<FileBase64Result | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
-  // 处理鼠标进入 - 显示弧形菜单
+  // 处理鼠标进入 - 显示+按钮
   const handleMouseEnter = useCallback(() => {
     if (status === "default") {
       setStatus("interactive");
@@ -70,16 +73,24 @@ export function ImageInputCard({
 
   // 处理鼠标离开
   const handleMouseLeave = useCallback(() => {
-    if (status === "interactive" && !isFocused) {
+    if (status === "interactive") {
       setStatus("default");
     }
-  }, [status, isFocused]);
+  }, [status]);
 
-  // 处理点击聚焦
-  const handleClick = useCallback(() => {
-    setStatus("focused");
+  // 处理点击+按钮 - 展开工具组
+  const handleExpandTools = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStatus("expanded");
+  }, []);
+
+  // 处理点击卡片其他区域 - 收起工具组
+  const handleCardClick = useCallback(() => {
+    if (status === "expanded") {
+      setStatus("interactive");
+    }
     onFocus?.(id);
-  }, [id, onFocus]);
+  }, [id, onFocus, status]);
 
   // 处理拖拽
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -111,13 +122,30 @@ export function ImageInputCard({
   }, [id, onRemove]);
 
   // 处理文件选择
-  const handleFileSelect = useCallback(() => {
-    // TODO: 实现文件选择逻辑
+  const handleFileSelect = useCallback(async () => {
+    try {
+      // 选择图片文件
+      const filePath = await selectFile("选择图片", [
+        { name: "Images", extensions: ["jpg", "jpeg", "png", "gif", "webp", "bmp"] },
+      ]);
+      
+      if (!filePath) return;
+      
+      setIsLoading(true);
+      
+      // 读取文件并转换为 Base64
+      const result = await readFileAsBase64(filePath);
+      setImageData(result);
+    } catch (error) {
+      console.error("选择文件失败:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   // 获取边框样式
   const getBorderStyle = () => {
-    if (isFocused || status === "focused") {
+    if (status === "expanded") {
       return "border-2 border-neutral-500 shadow-[0_0_20px_rgba(255,255,255,0.05)]";
     }
     if (status === "interactive") {
@@ -147,7 +175,7 @@ export function ImageInputCard({
           isDark ? "bg-[#18191c]" : "bg-white"
         } rounded-2xl flex flex-col items-center justify-center ${getBorderStyle()} transition-all duration-200 overflow-visible`}
         onMouseEnter={handleMouseEnter}
-        onClick={handleClick}
+        onClick={handleCardClick}
       >
         {/* 右上关闭按钮 - 交互态显示 */}
         {status !== "default" && (
@@ -163,40 +191,54 @@ export function ImageInputCard({
           </button>
         )}
 
-        {/* 选择文件按钮 */}
-        <button
-          className={`border ${
-            isDark
-              ? "border-neutral-700 bg-[#1e2023] hover:border-neutral-500 text-neutral-200"
-              : "border-gray-300 bg-gray-50 hover:border-gray-400 text-gray-700"
-          } text-sm px-5 py-2 rounded-xl transition-all`}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleFileSelect();
-          }}
-        >
-          选择文件
-        </button>
+        {/* 图片预览 */}
+        {imageData ? (
+          <div className="w-full h-full flex items-center justify-center p-2">
+            <img 
+              src={imageData.base64} 
+              alt={imageData.file_name}
+              className="max-w-full max-h-full object-contain rounded-lg"
+            />
+          </div>
+        ) : (
+          <>
+            {/* 选择文件按钮 */}
+            <button
+              className={`border ${
+                isDark
+                  ? "border-neutral-700 bg-[#1e2023] hover:border-neutral-500 text-neutral-200"
+                  : "border-gray-300 bg-gray-50 hover:border-gray-400 text-gray-700"
+              } text-sm px-5 py-2 rounded-xl transition-all`}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleFileSelect();
+              }}
+              disabled={isLoading}
+            >
+              {isLoading ? "加载中..." : "选择文件"}
+            </button>
 
-        {/* 提示文字 */}
-        <div
-          className={`mt-4 text-center text-[11px] ${
-            isDark ? "text-neutral-500" : "text-gray-400"
-          } leading-5`}
-        >
-          或拖放文件到此处
-          <br />
-          或 Ctrl+V 粘贴
-          {status === "default" && (
-            <>
+            {/* 提示文字 */}
+            <div
+              className={`mt-4 text-center text-[11px] ${
+                isDark ? "text-neutral-500" : "text-gray-400"
+              } leading-5`}
+            >
+              或拖放文件到此处
               <br />
-              支持音频、视频、图片素材
-            </>
-          )}
-        </div>
+              或 Ctrl+V 粘贴
+              {status === "default" && (
+                <>
+                  <br />
+                  支持音频、视频、图片素材
+                </>
+              )}
+            </div>
+          </>
+        )}
 
-        {/* 弧形菜单 - 交互态显示，使用独立锚点避免加号被工具列宽度挤回卡片内部 */}
-        {status === "interactive" && (
+        {/* 弧形菜单 - 交互态显示+按钮，展开态显示工具组 */}
+        {(status === "interactive" || status === "expanded") && (
           <div className="absolute right-0 top-1/2 -translate-y-1/2">
             {/* 主按钮 - 加号 */}
             <button
@@ -205,33 +247,36 @@ export function ImageInputCard({
               } border rounded-full flex items-center justify-center ${
                 isDark ? "text-white" : "text-gray-900"
               } shadow-xl z-20`}
+              onClick={handleExpandTools}
             >
               <LucideIcon name="plus" className="w-6 h-6" />
             </button>
 
-            {/* 弧形图标组 */}
-            <div className="absolute left-12 top-1/2 flex -translate-y-1/2 flex-col gap-2.5">
-              {arcMenuTools.map((tool, index) => (
-                <button
-                  key={tool.id}
-                  className={`w-9 h-9 ${
-                    isDark
-                      ? "bg-[#2a2d32] border-neutral-800 text-neutral-400 hover:text-white hover:bg-[#3a3d42]"
-                      : "bg-gray-100 border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-200"
-                  } border rounded-full flex items-center justify-center transition-all`}
-                  style={{
-                    transform: `translateX(${index === 0 || index === 3 ? 0 : 16}px)`,
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // TODO: 实现工具点击逻辑
-                  }}
-                  title={tool.label}
-                >
-                  <LucideIcon name={tool.icon} className="w-4 h-4" />
-                </button>
-              ))}
-            </div>
+            {/* 弧形图标组 - 仅展开态显示 */}
+            {status === "expanded" && (
+              <div className="absolute left-12 top-1/2 flex -translate-y-1/2 flex-col gap-2.5">
+                {arcMenuTools.map((tool, index) => (
+                  <button
+                    key={tool.id}
+                    className={`w-9 h-9 ${
+                      isDark
+                        ? "bg-[#2a2d32] border-neutral-800 text-neutral-400 hover:text-white hover:bg-[#3a3d42]"
+                        : "bg-gray-100 border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-200"
+                    } border rounded-full flex items-center justify-center transition-all`}
+                    style={{
+                      transform: `translateX(${index === 0 || index === 3 ? 0 : 16}px)`,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // TODO: 实现工具点击逻辑
+                    }}
+                    title={tool.label}
+                  >
+                    <LucideIcon name={tool.icon} className="w-4 h-4" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

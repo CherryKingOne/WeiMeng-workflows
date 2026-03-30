@@ -29,7 +29,7 @@ class ApplicationContainer:
         data_dir = self.settings.data_dir
 
         self.workflow_storage = WorkflowFileStorage(data_dir / "workflows")
-        self.workflow_repository = WorkflowSqliteRepository()
+        self.workflow_repository = WorkflowSqliteRepository(data_dir / "workflows.db")
 
         self.node_asset_storage = NodeAssetStorage(data_dir / "node_assets")
         self.node_market_repository = NodeMarketSqliteRepository()

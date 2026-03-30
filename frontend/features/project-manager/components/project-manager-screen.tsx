@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState, useMemo, type CSSProperties, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -42,6 +42,12 @@ export function ProjectManagerScreen() {
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // 只在客户端检查 bridge 可用性，避免 hydration mismatch
+  const isBridgeAvailable = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return workflowService.isAvailable();
+  }, []);
+
   /**
    * ============================================================
    * 从后端加载工作流列表
@@ -56,7 +62,7 @@ export function ProjectManagerScreen() {
    * @see backend/modules/workflow_engine/presentation/ipc_handlers.py
    */
   const loadWorkflows = useCallback(async () => {
-    if (!workflowService.isAvailable()) {
+    if (!isBridgeAvailable) {
       console.warn("Desktop bridge 不可用，使用模拟数据");
       return;
     }
@@ -70,11 +76,27 @@ export function ProjectManagerScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isBridgeAvailable]);
 
   // 组件挂载时加载工作流列表
   useEffect(() => {
     loadWorkflows();
+  }, [loadWorkflows]);
+
+  // 监听路由变化，当从其他页面返回时刷新数据
+  // 使用 pageshow 事件检测页面从 bfcache 恢复
+  useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      // persisted 为 true 表示页面从 bfcache 恢复
+      if (event.persisted) {
+        loadWorkflows();
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
   }, [loadWorkflows]);
 
   // 统一跳转函数 - 传递工作流 ID 到工作区
@@ -96,7 +118,7 @@ export function ProjectManagerScreen() {
    * @see core/api/workflow-service.ts#create
    */
   const handleCreateWorkflow = useCallback(async () => {
-    if (!workflowService.isAvailable()) {
+    if (!isBridgeAvailable) {
       openWorkspace();
       return;
     }
@@ -121,7 +143,7 @@ export function ProjectManagerScreen() {
    * 调用 workflowService.delete() 删除工作流
    */
   const handleDeleteWorkflow = useCallback(async (projectId: string, _projectName: string) => {
-    if (!workflowService.isAvailable()) return;
+    if (!isBridgeAvailable) return;
 
     if (!confirm("确定要删除这个项目吗？此操作无法撤销。")) {
       return;
@@ -276,11 +298,11 @@ export function ProjectManagerScreen() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              {!workflowService.isAvailable() ? (
+              {isBridgeAvailable ? null : (
                 <span className="rounded-full border border-white/8 bg-black/15 px-3 py-1 text-[11px] text-[var(--pm-text-muted)]">
                   Electron bridge 未接入
                 </span>
-              ) : null}
+              )}
               <button
                 type="button"
                 onClick={openSettings}

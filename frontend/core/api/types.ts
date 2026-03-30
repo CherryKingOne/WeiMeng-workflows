@@ -145,6 +145,26 @@ export interface DirectorySettings {
   cache_dir: string;
 }
 
+/** 清理缓存结果 */
+export interface ClearCacheResult {
+  deleted_count: number;
+  message: string;
+}
+
+/** 文件过滤器 */
+export interface FileFilter {
+  name: string;
+  extensions: string[];
+}
+
+/** 文件 Base64 转换结果 */
+export interface FileBase64Result {
+  base64: string;
+  mime_type: string;
+  file_name: string;
+  file_size: number;
+}
+
 /**
  * ============================================================
  * Nodes Market 模块 - 节点市场相关类型定义
