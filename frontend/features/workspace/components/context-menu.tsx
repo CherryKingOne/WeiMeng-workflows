@@ -440,9 +440,10 @@ interface ContextMenuProps {
   isOpen: boolean;
   position: { x: number; y: number };
   onClose: () => void;
+  onAddCard?: (type: "image" | "text" | "video", canvasPosition: { x: number; y: number }) => void;
 }
 
-export function ContextMenu({ isOpen, position, onClose }: ContextMenuProps) {
+export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const { theme } = useTheme();
@@ -517,7 +518,19 @@ export function ContextMenu({ isOpen, position, onClose }: ContextMenuProps) {
               className={`flex items-center justify-between w-full px-3 py-2 rounded-md group transition-colors ${
                 isDark ? "hover:bg-white/5" : "hover:bg-black/5"
               }`}
-              onClick={() => !item.submenu && console.log(`Clicked: ${item.id}`)}
+              onClick={() => {
+                if (!item.submenu) {
+                  // 处理图片菜单项点击 - 卡片位置在画布中心附近
+                  if (item.id === "image" && onAddCard) {
+                    onAddCard("image", { x: 1900, y: 1400 });
+                  }
+                  // 处理其他菜单项点击
+                  if (item.id === "text" && onAddCard) {
+                    onAddCard("text", { x: 1900, y: 1400 });
+                  }
+                  onClose();
+                }
+              }}
             >
               <div className="flex items-center">
                 <span className={`${isDark ? "text-gray-400 group-hover:text-white" : "text-gray-500 group-hover:text-gray-900"} mr-3`}>

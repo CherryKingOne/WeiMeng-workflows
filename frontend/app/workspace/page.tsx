@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { CanvasHeader } from "@/features/workspace/components/canvas-header";
 import { CanvasSidebar } from "@/features/workspace/components/canvas-sidebar";
@@ -12,7 +12,7 @@ import { StorageModal } from "@/features/workspace/components/storage-modal";
 import { useTheme } from "@/features/theme/theme-context";
 import { workflowService } from "@/core/api";
 
-export default function WorkspacePage() {
+function WorkspaceContent() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const searchParams = useSearchParams();
@@ -21,6 +21,14 @@ export default function WorkspacePage() {
   // 当前工作流信息
   const [projectName, setProjectName] = useState("未命名项目");
   const [isLoading, setIsLoading] = useState(false);
+
+  // 卡片列表状态
+  const [cards, setCards] = useState<Array<{
+    id: string;
+    type: "image" | "text" | "video";
+    position: { x: number; y: number };
+  }>>([]);
+  const [focusedCardId, setFocusedCardId] = useState<string | null>(null);
 
   // 加载工作流数据
   useEffect(() => {
@@ -91,12 +99,52 @@ export default function WorkspacePage() {
     setStorageModalOpen(false);
   }, []);
 
+  // 添加卡片到画布
+  const handleAddCard = useCallback((type: "image" | "text" | "video", canvasPosition: { x: number; y: number }) => {
+    const newCard = {
+      id: `card-${Date.now()}`,
+      type,
+      position: canvasPosition,
+    };
+    setCards((prev) => [...prev, newCard]);
+    setFocusedCardId(newCard.id);
+  }, []);
+
+  // 移除卡片
+  const handleRemoveCard = useCallback((id: string) => {
+    setCards((prev) => prev.filter((card) => card.id !== id));
+    if (focusedCardId === id) {
+      setFocusedCardId(null);
+    }
+  }, [focusedCardId]);
+
+  // 处理卡片聚焦
+  const handleCardFocus = useCallback((id: string) => {
+    setFocusedCardId(id);
+  }, []);
+
+  // 处理卡片移动
+  const handleCardMove = useCallback((id: string, position: { x: number; y: number }) => {
+    setCards((prev) =>
+      prev.map((card) =>
+        card.id === id ? { ...card, position } : card
+      )
+    );
+  }, []);
+
   return (
     <main className={`h-screen w-screen overflow-hidden font-sans select-none canvas-page ${
       isDark ? "text-gray-300" : "text-gray-700"
     }`}>
       {/* 画布容器 */}
-      <CanvasContainer onContextMenu={handleContextMenu} />
+      <CanvasContainer 
+        onContextMenu={handleContextMenu}
+        cards={cards}
+        focusedCardId={focusedCardId}
+        onRemoveCard={handleRemoveCard}
+        onCardFocus={handleCardFocus}
+        onCardMove={handleCardMove}
+      />
 
       {/* 顶部导航栏 */}
       <CanvasHeader 
@@ -119,6 +167,7 @@ export default function WorkspacePage() {
         isOpen={contextMenu.isOpen}
         position={contextMenu.position}
         onClose={closeContextMenu}
+        onAddCard={handleAddCard}
       />
 
       {/* 存储管理弹窗 */}
@@ -127,5 +176,17 @@ export default function WorkspacePage() {
         onClose={closeStorageModal}
       />
     </main>
+  );
+}
+
+export default function WorkspacePage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-gray-500">加载中...</div>
+      </div>
+    }>
+      <WorkspaceContent />
+    </Suspense>
   );
 }
