@@ -28,6 +28,9 @@ function WorkspaceContent() {
   
   // 连接线状态
   const [connections, setConnections] = useState<Connection[]>([]);
+  
+  // 正在生成中的卡片ID集合
+  const [generatingCards, setGeneratingCards] = useState<Set<string>>(new Set());
 
   // 加载工作流数据
   useEffect(() => {
@@ -148,6 +151,61 @@ function WorkspaceContent() {
     );
   }, []);
 
+  // 处理生成按钮点击（从 ImageGenerationCard 触发）
+  const handleGenerate = useCallback((generationCardId: string) => {
+    // 创建结果卡片，放在生成卡片的右侧
+    const resultCardId = `card-${Date.now()}`;
+    
+    setCards((prevCards) => {
+      const generationCard = prevCards.find(c => c.id === generationCardId);
+      if (!generationCard) {
+        console.log('未找到生成卡片:', generationCardId);
+        return prevCards;
+      }
+      
+      const newCard: CardItem = {
+        id: resultCardId,
+        type: "image-result",
+        position: {
+          x: generationCard.position.x + 540, // 生成卡片宽度 + 间距
+          y: generationCard.position.y + 60, // 垂直对齐
+        },
+        isGenerating: true,
+      };
+      
+      return [...prevCards, newCard];
+    });
+    
+    setFocusedCardId(resultCardId);
+    
+    // 添加连接关系
+    setConnections((prev) => [...prev, { fromId: generationCardId, toId: resultCardId }]);
+    
+    // 标记为正在生成
+    setGeneratingCards((prev) => new Set(prev).add(generationCardId));
+  }, []);
+
+  // 处理生成完成
+  const handleGenerationComplete = useCallback((resultCardId: string) => {
+    // 找到结果卡片对应的生成卡片
+    const connection = connections.find(c => c.toId === resultCardId);
+    if (connection) {
+      // 从生成中集合移除
+      setGeneratingCards((prev) => {
+        const next = new Set(prev);
+        next.delete(connection.fromId);
+        return next;
+      });
+    }
+    
+    // 更新结果卡片状态
+    setCards((prev) =>
+      prev.map((card) =>
+        card.id === resultCardId ? { ...card, isGenerating: false } : card
+      )
+    );
+  }, [connections]);
+
   return (
     <main className={`h-screen w-screen overflow-hidden font-sans select-none canvas-page ${
       isDark ? "text-gray-300" : "text-gray-700"
@@ -162,6 +220,9 @@ function WorkspaceContent() {
         onCardMove={handleCardMove}
         onAddConnectedCard={handleAddConnectedCard}
         connections={connections}
+        generatingCards={generatingCards}
+        onGenerationComplete={handleGenerationComplete}
+        onGenerate={handleGenerate}
       />
 
       {/* 顶部导航栏 */}

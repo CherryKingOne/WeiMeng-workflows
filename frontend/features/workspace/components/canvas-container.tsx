@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ImageInputCard } from "./image-input-card";
 import { ImageGenerationCard } from "./image-generation-card";
+import { ImageResultCard } from "./image-result-card";
 
 const IMAGE_INPUT_CARD_WIDTH = 320;
 const IMAGE_INPUT_CARD_HEIGHT = 320;
@@ -10,13 +11,18 @@ const IMAGE_INPUT_CARD_HEADER_OFFSET = 24;
 const IMAGE_GENERATION_CARD_WIDTH = 480;
 const IMAGE_GENERATION_CARD_HEIGHT = 380;
 const IMAGE_GENERATION_CARD_HEADER_OFFSET = 46;
+const IMAGE_RESULT_CARD_WIDTH = 260;
+const IMAGE_RESULT_CARD_HEIGHT = 260;
+const IMAGE_RESULT_CARD_HEADER_OFFSET = 24;
 
 export interface CardItem {
   id: string;
-  type: "image" | "text" | "video" | "image-generation";
+  type: "image" | "text" | "video" | "image-generation" | "image-result";
   position: { x: number; y: number };
   // 连接关系：此卡片连接到哪个卡片
   connectedTo?: string;
+  // 是否正在生成中
+  isGenerating?: boolean;
 }
 
 // 连接线配置
@@ -34,6 +40,9 @@ interface CanvasContainerProps {
   onCardMove?: (id: string, position: { x: number; y: number }) => void;
   onAddConnectedCard?: (parentId: string, type: string, position: { x: number; y: number }) => void;
   connections?: Connection[];
+  generatingCards?: Set<string>;
+  onGenerationComplete?: (resultCardId: string) => void;
+  onGenerate?: (generationCardId: string) => void;
 }
 
 export function CanvasContainer({
@@ -45,6 +54,9 @@ export function CanvasContainer({
   onCardMove,
   onAddConnectedCard,
   connections = [],
+  generatingCards = new Set(),
+  onGenerationComplete,
+  onGenerate,
 }: CanvasContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cardsContainerRef = useRef<HTMLDivElement>(null);
@@ -288,6 +300,13 @@ export function CanvasContainer({
       };
     }
 
+    if (card.type === "image-result") {
+      return {
+        x: offset.x + card.position.x + IMAGE_RESULT_CARD_WIDTH,
+        y: offset.y + card.position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2,
+      };
+    }
+
     return null;
   }, [offset.x, offset.y]);
 
@@ -303,6 +322,13 @@ export function CanvasContainer({
       return {
         x: offset.x + card.position.x,
         y: offset.y + card.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2,
+      };
+    }
+
+    if (card.type === "image-result") {
+      return {
+        x: offset.x + card.position.x,
+        y: offset.y + card.position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2,
       };
     }
 
@@ -456,6 +482,35 @@ export function CanvasContainer({
                   onFocus={onCardFocus}
                   isFocused={focusedCardId === card.id}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
+                  isGenerating={generatingCards.has(card.id)}
+                  onGenerate={onGenerate}
+                />
+              </div>
+            );
+          }
+          
+          // 图片结果卡片
+          if (card.type === "image-result") {
+            return (
+              <div
+                key={card.id}
+                data-card
+                data-card-id={card.id}
+                className="pointer-events-auto"
+                style={{
+                  position: "absolute",
+                  left: offset.x + card.position.x,
+                  top: offset.y + card.position.y,
+                }}
+              >
+                <ImageResultCard
+                  id={card.id}
+                  onRemove={onRemoveCard}
+                  onFocus={onCardFocus}
+                  isFocused={focusedCardId === card.id}
+                  onDragStart={(e) => handleCardDragStart(card.id, e)}
+                  isGenerating={card.isGenerating}
+                  onGenerationComplete={() => onGenerationComplete?.(card.id)}
                 />
               </div>
             );

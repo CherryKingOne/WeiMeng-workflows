@@ -34,6 +34,8 @@ interface ImageGenerationCardProps {
   onFocus?: (id: string) => void;
   isFocused?: boolean;
   onDragStart?: (e: React.MouseEvent) => void;
+  onGenerate?: (id: string) => void;
+  isGenerating?: boolean;
 }
 
 export function ImageGenerationCard({
@@ -42,6 +44,8 @@ export function ImageGenerationCard({
   onFocus,
   isFocused = false,
   onDragStart,
+  onGenerate,
+  isGenerating = false,
 }: ImageGenerationCardProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -65,10 +69,9 @@ export function ImageGenerationCard({
   // 处理生成按钮点击
   const handleGenerate = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // 显示 Toast
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2500);
-  }, []);
+    // 触发生成回调
+    onGenerate?.(id);
+  }, [id, onGenerate]);
 
   // 处理卡片点击
   const handleCardClick = useCallback(() => {
@@ -150,9 +153,10 @@ export function ImageGenerationCard({
 
             {/* 播放/生成按钮 */}
             <button
-              className="bg-transparent border border-[#3f3f46] rounded-md p-1 text-[#d4d4d8] hover:bg-white hover:text-black transition-colors flex items-center justify-center group"
+              className={`bg-transparent border border-[#3f3f46] rounded-md p-1 text-[#d4d4d8] hover:bg-white hover:text-black transition-colors flex items-center justify-center group ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
               title="生成图片"
               onClick={handleGenerate}
+              disabled={isGenerating}
             >
               <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
