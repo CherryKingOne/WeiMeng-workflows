@@ -1,12 +1,28 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { ImageInputCard } from "./image-input-card";
+import { ImageGenerationCard } from "./image-generation-card";
+
+const IMAGE_INPUT_CARD_WIDTH = 320;
+const IMAGE_INPUT_CARD_HEIGHT = 320;
+const IMAGE_INPUT_CARD_HEADER_OFFSET = 24;
+const IMAGE_GENERATION_CARD_WIDTH = 480;
+const IMAGE_GENERATION_CARD_HEIGHT = 380;
+const IMAGE_GENERATION_CARD_HEADER_OFFSET = 46;
 
 export interface CardItem {
   id: string;
-  type: "image" | "text" | "video";
+  type: "image" | "text" | "video" | "image-generation";
   position: { x: number; y: number };
+  // 连接关系：此卡片连接到哪个卡片
+  connectedTo?: string;
+}
+
+// 连接线配置
+export interface Connection {
+  fromId: string;
+  toId: string;
 }
 
 interface CanvasContainerProps {
@@ -16,6 +32,8 @@ interface CanvasContainerProps {
   onRemoveCard: (id: string) => void;
   onCardFocus: (id: string) => void;
   onCardMove?: (id: string, position: { x: number; y: number }) => void;
+  onAddConnectedCard?: (parentId: string, type: string, position: { x: number; y: number }) => void;
+  connections?: Connection[];
 }
 
 export function CanvasContainer({
@@ -25,14 +43,38 @@ export function CanvasContainer({
   onRemoveCard,
   onCardFocus,
   onCardMove,
+  onAddConnectedCard,
+  connections = [],
 }: CanvasContainerProps) {
-  const canvasRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const cardsContainerRef = useRef<HTMLDivElement>(null);
 
   // 画布位置状态
   const [offset, setOffset] = useState({ x: -1500, y: -1200 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
+  
+  // 卡片拖拽状态 - 使用 ref 避免频繁重新渲染
+  const cardDragState = useRef<{
+    isDragging: boolean;
+    cardId: string | null;
+    startX: number;
+    startY: number;
+    cardStartX: number;
+    cardStartY: number;
+    currentPosition: { x: number; y: number };
+  }>({
+    isDragging: false,
+    cardId: null,
+    startX: 0,
+    startY: 0,
+    cardStartX: 0,
+    cardStartY: 0,
+    currentPosition: { x: 0, y: 0 },
+  });
+
+  // SVG 连接线 ref
+  const svgRef = useRef<SVGSVGElement>(null);
 
   // 更新画布位置
   const updateCanvasPosition = useCallback((newOffset: { x: number; y: number }) => {
@@ -85,23 +127,232 @@ export function CanvasContainer({
     setIsDragging(false);
   }, []);
 
-  // 处理卡片拖拽
-  const handleCardDrag = useCallback((cardId: string, delta: { x: number; y: number }) => {
+  // 处理卡片拖拽开始
+  const handleCardDragStart = useCallback((cardId: string, e: React.MouseEvent) => {
     const card = cards.find(c => c.id === cardId);
-    if (card && onCardMove) {
-      onCardMove(cardId, {
-        x: card.position.x + delta.x,
-        y: card.position.y + delta.y,
-      });
+    if (!card) return;
+    
+    e.stopPropagation();
+    
+    cardDragState.current = {
+      isDragging: true,
+      cardId,
+      startX: e.clientX,
+      startY: e.clientY,
+      cardStartX: card.position.x,
+      cardStartY: card.position.y,
+      currentPosition: { x: card.position.x, y: card.position.y },
+    };
+  }, [cards]);
+
+  // 实时更新连接线
+  const updateConnectionsForCard = useCallback((cardId: string, newX: number, newY: number) => {
+    if (!svgRef.current) return;
+    
+    // 找到与这个卡片相关的所有连接
+    connections.forEach((connection) => {
+      const isFromCard = connection.fromId === cardId;
+      const isToCard = connection.toId === cardId;
+      
+      if (!isFromCard && !isToCard) return;
+      
+      const otherCardId = isFromCard ? connection.toId : connection.fromId;
+      const otherCard = cards.find(c => c.id === otherCardId);
+      const currentCard = cards.find(c => c.id === cardId);
+      
+      if (!otherCard || !currentCard) return;
+      
+      // 计算锚点位置
+      let fromX: number, fromY: number, toX: number, toY: number;
+      
+      if (isFromCard) {
+        // 当前卡片是起点
+        if (currentCard.type === "image") {
+          fromX = offset.x + newX + IMAGE_INPUT_CARD_WIDTH;
+          fromY = offset.y + newY + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2;
+        } else {
+          fromX = offset.x + newX + IMAGE_GENERATION_CARD_WIDTH;
+          fromY = offset.y + newY + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2;
+        }
+        
+        // 另一张卡片作为终点
+        if (otherCard.type === "image") {
+          toX = offset.x + otherCard.position.x;
+          toY = offset.y + otherCard.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2;
+        } else {
+          toX = offset.x + otherCard.position.x;
+          toY = offset.y + otherCard.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2;
+        }
+      } else {
+        // 当前卡片是终点
+        if (otherCard.type === "image") {
+          fromX = offset.x + otherCard.position.x + IMAGE_INPUT_CARD_WIDTH;
+          fromY = offset.y + otherCard.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2;
+        } else {
+          fromX = offset.x + otherCard.position.x + IMAGE_GENERATION_CARD_WIDTH;
+          fromY = offset.y + otherCard.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2;
+        }
+        
+        // 当前卡片作为终点
+        if (currentCard.type === "image") {
+          toX = offset.x + newX;
+          toY = offset.y + newY + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2;
+        } else {
+          toX = offset.x + newX;
+          toY = offset.y + newY + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2;
+        }
+      }
+      
+      // 生成贝塞尔曲线路径
+      const dx = toX - fromX;
+      const controlOffset = Math.min(Math.abs(dx) * 0.5, 100);
+      const path = `M ${fromX} ${fromY} C ${fromX + controlOffset} ${fromY}, ${toX - controlOffset} ${toY}, ${toX} ${toY}`;
+      
+      // 更新 SVG 元素
+      const pathElement = svgRef.current?.querySelector(`[data-connection="${connection.fromId}-${connection.toId}"]`);
+      const circleElement = svgRef.current?.querySelector(`[data-connection-circle="${connection.fromId}-${connection.toId}"]`);
+      
+      if (pathElement) {
+        pathElement.setAttribute('d', path);
+      }
+      if (circleElement) {
+        circleElement.setAttribute('cx', String((fromX + toX) / 2));
+        circleElement.setAttribute('cy', String((fromY + toY) / 2));
+      }
+    });
+  }, [connections, cards, offset]);
+
+  // 处理卡片拖拽移动 - 使用全局事件和 requestAnimationFrame
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      const state = cardDragState.current;
+      if (!state.isDragging || !state.cardId) return;
+
+      const deltaX = e.clientX - state.startX;
+      const deltaY = e.clientY - state.startY;
+      const newX = state.cardStartX + deltaX;
+      const newY = state.cardStartY + deltaY;
+
+      // 直接更新 DOM 元素位置（不触发 React 重新渲染）
+      const cardElement = document.querySelector(`[data-card-id="${state.cardId}"]`);
+      if (cardElement) {
+        cardElement.setAttribute('style', `position: absolute; left: ${offset.x + newX}px; top: ${offset.y + newY}px;`);
+      }
+
+      // 更新当前位置
+      state.currentPosition = { x: newX, y: newY };
+      
+      // 实时更新连接线
+      updateConnectionsForCard(state.cardId, newX, newY);
+    };
+
+    const handleGlobalMouseUp = () => {
+      const state = cardDragState.current;
+      if (state.isDragging && state.cardId) {
+        // 拖拽结束时，更新 React 状态
+        onCardMove?.(state.cardId, state.currentPosition);
+      }
+      
+      cardDragState.current = {
+        isDragging: false,
+        cardId: null,
+        startX: 0,
+        startY: 0,
+        cardStartX: 0,
+        cardStartY: 0,
+        currentPosition: { x: 0, y: 0 },
+      };
+    };
+
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [offset, onCardMove, updateConnectionsForCard]);
+
+  const getCardOutputAnchor = useCallback((card: CardItem) => {
+    if (card.type === "image") {
+      return {
+        x: offset.x + card.position.x + IMAGE_INPUT_CARD_WIDTH,
+        y: offset.y + card.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2,
+      };
     }
-  }, [cards, onCardMove]);
+
+    if (card.type === "image-generation") {
+      return {
+        x: offset.x + card.position.x + IMAGE_GENERATION_CARD_WIDTH,
+        y: offset.y + card.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2,
+      };
+    }
+
+    return null;
+  }, [offset.x, offset.y]);
+
+  const getCardInputAnchor = useCallback((card: CardItem) => {
+    if (card.type === "image") {
+      return {
+        x: offset.x + card.position.x,
+        y: offset.y + card.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2,
+      };
+    }
+
+    if (card.type === "image-generation") {
+      return {
+        x: offset.x + card.position.x,
+        y: offset.y + card.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2,
+      };
+    }
+
+    return null;
+  }, [offset.x, offset.y]);
+
+  // 计算连接线的起点和终点
+  const getConnectionLine = (connection: Connection) => {
+    const fromCard = cards.find(c => c.id === connection.fromId);
+    const toCard = cards.find(c => c.id === connection.toId);
+    
+    if (!fromCard || !toCard) return null;
+
+    const fromAnchor = getCardOutputAnchor(fromCard);
+    const toAnchor = getCardInputAnchor(toCard);
+
+    if (!fromAnchor || !toAnchor) return null;
+
+    return {
+      fromX: fromAnchor.x,
+      fromY: fromAnchor.y,
+      toX: toAnchor.x,
+      toY: toAnchor.y,
+    };
+  };
+
+  // 生成贝塞尔曲线路径
+  const generateBezierPath = (fromX: number, fromY: number, toX: number, toY: number) => {
+    // 计算控制点，使曲线更平滑
+    const dx = toX - fromX;
+    const controlOffset = Math.min(Math.abs(dx) * 0.5, 100); // 控制点偏移量
+    
+    // 使用三次贝塞尔曲线 (C 命令)
+    // 控制点1: 从起点向右延伸
+    // 控制点2: 从终点向左延伸
+    return `M ${fromX} ${fromY} C ${fromX + controlOffset} ${fromY}, ${toX - controlOffset} ${toY}, ${toX} ${toY}`;
+  };
 
   return (
     <>
-      {/* 画布背景层 - 有 overflow-hidden */}
+      {/* 无限画布背景层 - 使用 background-position 实现无限滚动 */}
       <div
         ref={containerRef}
         className={`absolute inset-0 overflow-hidden ${isDragging ? "grabbing" : "grabbable"}`}
+        style={{
+          backgroundColor: "#09090b",
+          backgroundImage: "radial-gradient(circle at center, #3f3f46 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+          backgroundPosition: `${offset.x}px ${offset.y}px`,
+        }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -116,28 +367,50 @@ export function CanvasContainer({
             // 取消聚焦逻辑由父组件处理
           }
         }}
-      >
-        {/* 画布背景 */}
-        <div
-          ref={canvasRef}
-          className="absolute dot-grid z-0"
-          style={{
-            width: "4000px",
-            height: "3000px",
-            left: `${offset.x}px`,
-            top: `${offset.y}px`,
-          }}
-        />
-      </div>
+      />
 
       {/* 卡片渲染层 - 独立于画布容器，不受 overflow-hidden 限制 */}
       <div className="absolute inset-0 pointer-events-none overflow-visible z-10">
+        {/* 连接线渲染 */}
+        <svg ref={svgRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
+          {connections.map((connection) => {
+            const line = getConnectionLine(connection);
+            if (!line) return null;
+            
+            const path = generateBezierPath(line.fromX, line.fromY, line.toX, line.toY);
+            
+            return (
+              <g key={`${connection.fromId}-${connection.toId}`}>
+                {/* 贝塞尔曲线 */}
+                <path
+                  data-connection={`${connection.fromId}-${connection.toId}`}
+                  d={path}
+                  fill="none"
+                  stroke="#52525b"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                {/* 连接点圆圈 - 在曲线中点 */}
+                <circle
+                  data-connection-circle={`${connection.fromId}-${connection.toId}`}
+                  cx={(line.fromX + line.toX) / 2}
+                  cy={(line.fromY + line.toY) / 2}
+                  r="4"
+                  fill="#52525b"
+                />
+              </g>
+            );
+          })}
+        </svg>
+
         {cards.map((card) => {
+          // 图片输入卡片
           if (card.type === "image") {
             return (
               <div
                 key={card.id}
                 data-card
+                data-card-id={card.id}
                 className="pointer-events-auto"
                 style={{
                   position: "absolute",
@@ -150,11 +423,44 @@ export function CanvasContainer({
                   onRemove={onRemoveCard}
                   onFocus={onCardFocus}
                   isFocused={focusedCardId === card.id}
-                  onDrag={(delta) => handleCardDrag(card.id, delta)}
+                  hasOutgoingConnection={connections.some((connection) => connection.fromId === card.id)}
+                  onDragStart={(e) => handleCardDragStart(card.id, e)}
+                  onAddConnectedCard={(type, position) => {
+                    onAddConnectedCard?.(card.id, type, {
+                      x: card.position.x + position.x,
+                      y: card.position.y + position.y,
+                    });
+                  }}
                 />
               </div>
             );
           }
+          
+          // 图片生成卡片
+          if (card.type === "image-generation") {
+            return (
+              <div
+                key={card.id}
+                data-card
+                data-card-id={card.id}
+                className="pointer-events-auto"
+                style={{
+                  position: "absolute",
+                  left: offset.x + card.position.x,
+                  top: offset.y + card.position.y,
+                }}
+              >
+                <ImageGenerationCard
+                  id={card.id}
+                  onRemove={onRemoveCard}
+                  onFocus={onCardFocus}
+                  isFocused={focusedCardId === card.id}
+                  onDragStart={(e) => handleCardDragStart(card.id, e)}
+                />
+              </div>
+            );
+          }
+          
           return null;
         })}
       </div>

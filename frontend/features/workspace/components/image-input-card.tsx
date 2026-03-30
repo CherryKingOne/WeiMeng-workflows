@@ -6,7 +6,7 @@ import { selectFile, readFileAsBase64, type FileBase64Result } from "@/core/api"
 
 // 弧形菜单工具项
 const arcMenuTools = [
-  { id: "palette", icon: "palette", label: "调色板" },
+  { id: "image-generation", icon: "sparkles", label: "图像生成" },
   { id: "film", icon: "film", label: "视频" },
   { id: "layout-grid", icon: "layout-grid", label: "网格" },
   { id: "scissors", icon: "scissors", label: "裁剪" },
@@ -17,7 +17,7 @@ function LucideIcon({ name, className }: { name: string; className?: string }) {
   const iconPaths: Record<string, string> = {
     x: "M18 6L6 18M6 6l12 12",
     plus: "M12 5v14M5 12h14",
-    palette: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 8 6.5 8 8 8.67 8 9.5 7.33 11 6.5 11zm3-4C8.67 7 8 6.33 8 5.5S8.67 4 9.5 4s1.5.67 1.5 1.5S10.33 7 9.5 7zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 4 14.5 4s1.5.67 1.5 1.5S15.33 7 14.5 7zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 8 17.5 8s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
+    sparkles: "M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z",
     film: "M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9",
     "layout-grid": "M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z",
     scissors: "M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 11-4.243 4.243 3 3 0 014.243-4.243zm0-11.515a3 3 0 11-4.243 4.243 3 3 0 014.243-4.243z",
@@ -43,7 +43,9 @@ interface ImageInputCardProps {
   onRemove?: (id: string) => void;
   onFocus?: (id: string) => void;
   isFocused?: boolean;
-  onDrag?: (delta: { x: number; y: number }) => void;
+  hasOutgoingConnection?: boolean;
+  onDragStart?: (e: React.MouseEvent) => void;
+  onAddConnectedCard?: (type: string, position: { x: number; y: number }) => void;
 }
 
 export function ImageInputCard({
@@ -51,7 +53,9 @@ export function ImageInputCard({
   onRemove,
   onFocus,
   isFocused = false,
-  onDrag,
+  hasOutgoingConnection = false,
+  onDragStart,
+  onAddConnectedCard,
 }: ImageInputCardProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -59,10 +63,8 @@ export function ImageInputCard({
 
   // 卡片状态：default - 默认态, interactive - 交互态（显示+按钮）, expanded - 展开态（显示工具组）
   const [status, setStatus] = useState<"default" | "interactive" | "expanded">("default");
-  const [isDragging, setIsDragging] = useState(false);
   const [imageData, setImageData] = useState<FileBase64Result | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const dragStart = useRef({ x: 0, y: 0 });
 
   // 处理鼠标进入 - 显示+按钮
   const handleMouseEnter = useCallback(() => {
@@ -92,28 +94,10 @@ export function ImageInputCard({
     onFocus?.(id);
   }, [id, onFocus, status]);
 
-  // 处理拖拽
+  // 处理拖拽开始
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsDragging(true);
-    dragStart.current = {
-      x: e.clientX,
-      y: e.clientY,
-    };
-  }, []);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging) return;
-
-    const deltaX = e.clientX - dragStart.current.x;
-    const deltaY = e.clientY - dragStart.current.y;
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    onDrag?.({ x: deltaX, y: deltaY });
-  }, [isDragging, onDrag]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+    onDragStart?.(e);
+  }, [onDragStart]);
 
   // 处理删除
   const handleRemove = useCallback((e: React.MouseEvent) => {
@@ -157,14 +141,9 @@ export function ImageInputCard({
   return (
     <div
       ref={cardRef}
-      className={`${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+      className="cursor-grab"
       onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={() => {
-        handleMouseLeave();
-        if (isDragging) handleMouseUp();
-      }}
+      onMouseLeave={handleMouseLeave}
     >
       {/* 标签 */}
       <div className="text-[12px] text-neutral-400 mb-2">图片输入</div>
@@ -177,6 +156,10 @@ export function ImageInputCard({
         onMouseEnter={handleMouseEnter}
         onClick={handleCardClick}
       >
+        {hasOutgoingConnection && (
+          <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#52525b] border-2 border-[#18191c] z-10" />
+        )}
+
         {/* 右上关闭按钮 - 交互态显示 */}
         {status !== "default" && (
           <button
@@ -268,7 +251,11 @@ export function ImageInputCard({
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      // TODO: 实现工具点击逻辑
+                      // 点击图像生成按钮时创建新卡片
+                      if (tool.id === "image-generation") {
+                        onAddConnectedCard?.("image-generation", { x: 350, y: -46 });
+                      }
+                      // TODO: 实现其他工具点击逻辑
                     }}
                     title={tool.label}
                   >

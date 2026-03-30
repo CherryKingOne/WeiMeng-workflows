@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>节点UI复刻</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用自定义样式生成精确的背景点状网格，这是Tailwind内置类不好完美处理的 */
+        .dot-grid-bg {
+            background-color: #0b0b0e; /* 极暗的背景底色 */
+            background-image: radial-gradient(circle, #3f3f46 1px, transparent 1px);
+            background-size: 32px 32px; /* 根据图片比例测算的网格间距 */
+            background-position: -1px -1px; /* 调整起始位置对齐 */
+        }
+    </style>
+</head>
+<body class="dot-grid-bg w-screen h-screen overflow-hidden flex items-center justify-center font-sans antialiased relative">
+
+    <!-- 
+      【交互状态预留：点击存储后的弹窗】
+      根据你的要求预留了样式。目前是 hidden 状态，若要查看，将 hidden 移除即可。
+      设计上遵循了截图中的极简、暗色调风格。
+    -->
+    <div id="save-popup" class="hidden absolute top-8 left-1/2 -translate-x-1/2 bg-[#232326] border border-white/10 text-[#d4d4d8] px-6 py-2.5 rounded-lg shadow-2xl flex items-center space-x-2 z-50 transition-all duration-300">
+        <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span class="text-sm tracking-wider">节点已成功存储</span>
+    </div>
+
+    <!-- 画布区域 (为了方便展示，我将节点放在了中间偏左的位置) -->
+    <div class="relative w-full h-full">
+
+        <!-- 节点容器 (位置对应截图中的大约位置) -->
+        <div class="absolute top-[100px] left-[100px] flex flex-col group">
+            
+            <!-- 节点标题 -->
+            <div class="text-[#9898a0] text-[15px] mb-2 font-medium tracking-wide pointer-events-none select-none px-1">
+                生成图片_1
+            </div>
+
+            <!-- 节点主体卡片 -->
+            <!-- 宽和高根据网格比例精确设定，圆角约14px，加入1px的极细微发光边框提升质感 -->
+            <div class="relative w-[260px] h-[260px] rounded-[14px] flex overflow-hidden ring-1 ring-white/5 shadow-2xl bg-[#0b0b0e]">
+                
+                <!-- 左半部分：仔细观察截图，不是纯色，而是从上到下的极弱渐变灰 -->
+                <div class="w-1/2 h-full bg-gradient-to-b from-[#83838c] to-[#6d6d75]"></div>
+                
+                <!-- 右半部分：深灰色纯色 -->
+                <div class="w-1/2 h-full bg-[#232326]"></div>
+
+                <!-- 
+                  左侧输入端口 & 贝塞尔曲线连线 
+                  必须使用 absolute 定位在卡片的左边缘正中间
+                -->
+                <div class="absolute left-0 top-1/2 -translate-y-1/2 flex items-center">
+                    
+                    <!-- 模拟从左侧连接过来的线 (使用SVG绘制带有弧度的贝塞尔曲线) -->
+                    <!-- 放在白点下面(z-index通过DOM顺序控制)，并向左偏移 -->
+                    <svg class="absolute right-[3px] w-16 h-8 -translate-y-1/2 top-1/2 pointer-events-none" viewBox="0 0 64 32">
+                        <!-- M:起点 C:控制点1 控制点2 终点。模拟图中从下方略微弯曲连入的效果 -->
+                        <path d="M 0 28 C 30 28, 40 16, 64 16" stroke="#4b4b52" stroke-width="2.5" fill="none" />
+                    </svg>
+
+                    <!-- 白色的端口圆点 (注意它有一圈暗色描边与背景融合) -->
+                    <div class="absolute left-0 -translate-x-1/2 w-[9px] h-[9px] bg-[#f4f4f5] rounded-full border-[1.5px] border-[#0b0b0e] z-10 box-content"></div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

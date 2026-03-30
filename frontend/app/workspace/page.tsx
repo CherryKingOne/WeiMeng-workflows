@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { CanvasHeader } from "@/features/workspace/components/canvas-header";
 import { CanvasSidebar } from "@/features/workspace/components/canvas-sidebar";
 import { ContextMenu } from "@/features/workspace/components/context-menu";
-import { CanvasContainer } from "@/features/workspace/components/canvas-container";
+import { CanvasContainer, CardItem, Connection } from "@/features/workspace/components/canvas-container";
 import { Minimap } from "@/features/workspace/components/minimap";
 import { HelpButton } from "@/features/workspace/components/help-button";
 import { StorageModal } from "@/features/workspace/components/storage-modal";
@@ -23,12 +23,11 @@ function WorkspaceContent() {
   const [isLoading, setIsLoading] = useState(false);
 
   // 卡片列表状态
-  const [cards, setCards] = useState<Array<{
-    id: string;
-    type: "image" | "text" | "video";
-    position: { x: number; y: number };
-  }>>([]);
+  const [cards, setCards] = useState<CardItem[]>([]);
   const [focusedCardId, setFocusedCardId] = useState<string | null>(null);
+  
+  // 连接线状态
+  const [connections, setConnections] = useState<Connection[]>([]);
 
   // 加载工作流数据
   useEffect(() => {
@@ -101,7 +100,7 @@ function WorkspaceContent() {
 
   // 添加卡片到画布
   const handleAddCard = useCallback((type: "image" | "text" | "video", canvasPosition: { x: number; y: number }) => {
-    const newCard = {
+    const newCard: CardItem = {
       id: `card-${Date.now()}`,
       type,
       position: canvasPosition,
@@ -110,9 +109,26 @@ function WorkspaceContent() {
     setFocusedCardId(newCard.id);
   }, []);
 
+  // 添加连接的子卡片
+  const handleAddConnectedCard = useCallback((parentId: string, type: string, position: { x: number; y: number }) => {
+    const newCardId = `card-${Date.now()}`;
+    const newCard: CardItem = {
+      id: newCardId,
+      type: type as CardItem["type"],
+      position,
+    };
+    setCards((prev) => [...prev, newCard]);
+    setFocusedCardId(newCardId);
+    
+    // 添加连接关系
+    setConnections((prev) => [...prev, { fromId: parentId, toId: newCardId }]);
+  }, []);
+
   // 移除卡片
   const handleRemoveCard = useCallback((id: string) => {
     setCards((prev) => prev.filter((card) => card.id !== id));
+    // 同时移除相关的连接线
+    setConnections((prev) => prev.filter((conn) => conn.fromId !== id && conn.toId !== id));
     if (focusedCardId === id) {
       setFocusedCardId(null);
     }
@@ -144,6 +160,8 @@ function WorkspaceContent() {
         onRemoveCard={handleRemoveCard}
         onCardFocus={handleCardFocus}
         onCardMove={handleCardMove}
+        onAddConnectedCard={handleAddConnectedCard}
+        connections={connections}
       />
 
       {/* 顶部导航栏 */}
