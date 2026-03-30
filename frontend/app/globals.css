@@ -1,0 +1,194 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --background: #0f0f0f;
+  --foreground: #f8fafc;
+  --font-ui: "Noto Sans SC", "Noto Sans CJK SC", "PingFang SC",
+    "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-ui);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-ui);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.28);
+}
+
+.project-manager-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.56) transparent;
+}
+
+.project-manager-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.project-manager-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.project-manager-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.project-manager-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.72);
+}
+
+.traffic-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+}
+
+.traffic-light-close {
+  background: linear-gradient(180deg, #ff7b75 0%, #ff5f57 100%);
+  border: 0.5px solid #e0443e;
+}
+
+.traffic-light-minimize {
+  background: linear-gradient(180deg, #ffd057 0%, #febc2e 100%);
+  border: 0.5px solid #dea123;
+}
+
+.traffic-light-maximize {
+  background: linear-gradient(180deg, #4dde66 0%, #28c840 100%);
+  border: 0.5px solid #1aab29;
+}
+
+/* 画布页面样式 */
+.canvas-page {
+  background-color: #0c0c0c;
+}
+
+/* 点状网格背景 */
+.dot-grid {
+  background-image: radial-gradient(circle, #2d2d2d 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* 隐藏滚动条 */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 玻璃面板效果 */
+.glass-panel {
+  background-color: rgba(23, 23, 23, 0.8);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 子菜单玻璃效果 */
+.submenu-glass {
+  background-color: rgba(26, 26, 26, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+/* 导航按钮样式 */
+.nav-pill {
+  background-color: rgba(17, 24, 39, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.nav-pill:hover {
+  background-color: rgba(37, 99, 235, 0.18);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #ffffff;
+}
+
+/* 拖拽光标 */
+.grabbing {
+  cursor: grabbing !important;
+}
+
+.grabbable {
+  cursor: grab;
+}
+
+/* 右键菜单动画 */
+@keyframes context-menu-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.context-menu-animate {
+  animation: context-menu-fade-in 0.15s ease-out;
+}
+
+/* 亮色主题画布样式 */
+[data-theme="light"] .canvas-page {
+  background-color: #f5f5f5;
+}
+
+[data-theme="light"] .dot-grid {
+  background-image: radial-gradient(circle, #d4d4d4 1px, transparent 1px);
+}
+
+[data-theme="light"] .glass-panel {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .submenu-glass {
+  background-color: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .nav-pill {
+  background-color: rgba(243, 244, 246, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .nav-pill:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}

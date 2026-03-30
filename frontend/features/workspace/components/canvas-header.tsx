@@ -1,0 +1,224 @@
+"use client";
+
+import Link from "next/link";
+import { useTheme } from "@/features/theme/theme-context";
+
+interface CanvasHeaderProps {
+  projectName?: string;
+  zoom?: number;
+}
+
+export function CanvasHeader({
+  projectName = "未命名项目",
+  zoom = 90,
+}: CanvasHeaderProps) {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+
+  return (
+    <header className="fixed top-4 inset-x-0 z-20 pointer-events-none">
+      <div className="flex items-center justify-between px-4 max-w-[100vw] overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* 左侧项目信息 */}
+        <button
+          className={`flex shrink-0 items-center space-x-2 px-3 py-1.5 rounded-full border pointer-events-auto cursor-pointer transition-colors ${
+            isDark
+              ? "bg-[#1a1a1a] border-white/5 hover:bg-[#252525]"
+              : "bg-white border-black/10 hover:bg-gray-50"
+          }`}
+          onClick={() => {
+            // TODO: 点击后显示输入框，允许编辑项目名称
+            console.log("编辑项目名称");
+          }}
+        >
+          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+            <svg
+              className="w-4 h-4 text-white"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+            </svg>
+          </div>
+          <span className={`text-sm font-medium ${isDark ? "" : "text-gray-900"}`}>
+            {projectName}
+          </span>
+        </button>
+
+        {/* 中间信息栏 */}
+        <div className="glass-panel shrink-0 px-4 py-2 rounded-full flex items-center space-x-3 text-sm pointer-events-auto mx-4">
+          <Link
+            href="/"
+            className="nav-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M15 19l-7-7 7-7"
+              ></path>
+            </svg>
+            <span>返回项目</span>
+          </Link>
+          <span className="text-blue-400">@WeiMeng</span>
+          <span className={isDark ? "text-gray-500" : "text-gray-400"}>|</span>
+          <span className="text-purple-400">V.0.0.1</span>
+        </div>
+
+        {/* 右侧工具栏 */}
+        <div className="glass-panel shrink-0 px-4 py-2 rounded-full flex items-center space-x-4 text-sm pointer-events-auto">
+          <div className="flex items-center space-x-2">
+            <Link
+              href="/"
+              className={`transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}
+              aria-label="返回项目列表"
+            >
+              ←
+            </Link>
+            <div className="flex items-center space-x-2">
+              <svg
+                className={`w-4 h-4 ${isDark ? "" : "text-gray-600"}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                ></path>
+              </svg>
+              <span className={isDark ? "" : "text-gray-700"}>{zoom}%</span>
+            </div>
+          </div>
+          <div className={`flex items-center space-x-4 border-l pl-4 ${isDark ? "border-white/10" : "border-black/10"}`}>
+            <button className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+              </svg>
+              <span>下载</span>
+            </button>
+            <button
+              className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}
+              onClick={toggleTheme}
+              title={isDark ? "切换到亮色模式" : "切换到暗色模式"}
+            >
+              {isDark ? (
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+                </svg>
+              ) : (
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="4"></circle>
+                  <path d="M12 2v2"></path>
+                  <path d="M12 20v2"></path>
+                  <path d="m4.93 4.93 1.41 1.41"></path>
+                  <path d="m17.66 17.66 1.41 1.41"></path>
+                  <path d="M2 12h2"></path>
+                  <path d="M20 12h2"></path>
+                  <path d="m6.34 17.66-1.41 1.41"></path>
+                  <path d="m19.07 4.93-1.41 1.41"></path>
+                </svg>
+              )}
+              <span>{isDark ? "暗色" : "亮色"}</span>
+            </button>
+            <div className="flex items-center space-x-1.5">
+              <div className={`w-4 h-4 border rounded-sm ${isDark ? "border-white/30" : "border-black/20"}`}></div>
+              <span className={isDark ? "" : "text-gray-700"}>画布色</span>
+            </div>
+            <button className={`transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}>
+              清空
+            </button>
+            <button className="flex items-center space-x-1.5 text-blue-400">
+              <svg
+                className="w-4 h-4"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+              </svg>
+              <span>网格</span>
+            </button>
+            <button className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+              <span>吸附</span>
+            </button>
+            <button className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+              </svg>
+              <span>导航</span>
+            </button>
+            <button className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+              </svg>
+              <span>边框</span>
+            </button>
+            <button className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+              </svg>
+              <span>存储</span>
+            </button>
+            <button className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+              </svg>
+              <span>API 设置</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
