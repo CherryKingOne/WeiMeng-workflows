@@ -128,7 +128,7 @@ export function ProjectManagerScreen() {
         name: "新工作流",
       });
       setWorkflows((prev) => [newWorkflow, ...prev]);
-      openWorkspace();
+      openWorkspace(newWorkflow.workflow_id);
     } catch (error) {
       console.error("创建工作流失败:", error);
       openWorkspace();

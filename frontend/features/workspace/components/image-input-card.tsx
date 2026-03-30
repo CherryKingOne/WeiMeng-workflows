@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useTheme } from "@/features/theme/theme-context";
 import { selectFile, readFileAsBase64, type FileBase64Result } from "@/core/api";
 
@@ -46,6 +46,31 @@ interface ImageInputCardProps {
   hasOutgoingConnection?: boolean;
   onDragStart?: (e: React.MouseEvent) => void;
   onAddConnectedCard?: (type: string, position: { x: number; y: number }) => void;
+  data?: Record<string, unknown>;
+  onDataChange?: (data: Record<string, unknown>) => void;
+}
+
+function parseImageData(value: unknown): FileBase64Result | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<FileBase64Result>;
+  if (
+    typeof candidate.base64 !== "string" ||
+    typeof candidate.mime_type !== "string" ||
+    typeof candidate.file_name !== "string" ||
+    typeof candidate.file_size !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    base64: candidate.base64,
+    mime_type: candidate.mime_type,
+    file_name: candidate.file_name,
+    file_size: candidate.file_size,
+  };
 }
 
 export function ImageInputCard({
@@ -56,6 +81,8 @@ export function ImageInputCard({
   hasOutgoingConnection = false,
   onDragStart,
   onAddConnectedCard,
+  data,
+  onDataChange,
 }: ImageInputCardProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -63,8 +90,12 @@ export function ImageInputCard({
 
   // 卡片状态：default - 默认态, interactive - 交互态（显示+按钮）, expanded - 展开态（显示工具组）
   const [status, setStatus] = useState<"default" | "interactive" | "expanded">("default");
-  const [imageData, setImageData] = useState<FileBase64Result | null>(null);
+  const [imageData, setImageData] = useState<FileBase64Result | null>(() => parseImageData(data?.imageData));
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setImageData(parseImageData(data?.imageData));
+  }, [data]);
 
   // 处理鼠标进入 - 显示+按钮
   const handleMouseEnter = useCallback(() => {
@@ -120,12 +151,13 @@ export function ImageInputCard({
       // 读取文件并转换为 Base64
       const result = await readFileAsBase64(filePath);
       setImageData(result);
+      onDataChange?.({ imageData: result });
     } catch (error) {
       console.error("选择文件失败:", error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [onDataChange]);
 
   // 获取边框样式
   const getBorderStyle = () => {

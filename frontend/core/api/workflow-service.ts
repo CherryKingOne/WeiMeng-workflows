@@ -46,6 +46,7 @@ import type {
   WorkflowCreateRequest,
   WorkflowCreateResponse,
   WorkflowListResponse,
+  WorkflowGetRequest,
   WorkflowGetResponse,
   WorkflowUpdateRequest,
   WorkflowUpdateResponse,
@@ -142,12 +143,13 @@ class WorkflowService {
    *
    * @param params - 查询参数
    * @param params.workflow_id - 工作流 ID
+   * @param params.include_details - 是否包含详细信息（节点和边），默认 true
    * @returns 工作流详情
    *
    * @example
    * const workflow = await workflowService.get({ workflow_id: 'abc-123' });
    */
-  async get(params: { workflow_id: string }): Promise<WorkflowGetResponse> {
+  async get(params: WorkflowGetRequest): Promise<WorkflowGetResponse> {
     const bridge = this.getBridge();
     if (!bridge) {
       throw new Error("Desktop bridge 未初始化，请确保 Electron 已启动");
@@ -155,7 +157,10 @@ class WorkflowService {
 
     const response = await bridge.invoke<IPCResponse<WorkflowGetResponse>>(
       "workflow.get",
-      { workflow_id: params.workflow_id }
+      {
+        workflow_id: params.workflow_id,
+        include_details: params.include_details ?? true,
+      }
     );
 
     if (response.status === "error") {
@@ -174,12 +179,16 @@ class WorkflowService {
    * @param params - 更新参数
    * @param params.workflow_id - 工作流 ID
    * @param params.name - 新名称（可选）
+   * @param params.nodes - 节点列表（可选）
+   * @param params.edges - 边列表（可选）
    * @returns 更新后的工作流对象
    *
    * @example
    * const updated = await workflowService.update({
    *   workflow_id: 'abc-123',
-   *   name: '新名称'
+   *   name: '新名称',
+   *   nodes: [{ node_id: 'n1', node_type: 'image', position_x: 100, position_y: 100 }],
+   *   edges: [{ source_node_id: 'n1', target_node_id: 'n2' }],
    * });
    */
   async update(params: WorkflowUpdateRequest): Promise<WorkflowUpdateResponse> {
@@ -193,6 +202,8 @@ class WorkflowService {
       {
         workflow_id: params.workflow_id,
         name: params.name,
+        nodes: params.nodes,
+        edges: params.edges,
       }
     );
 

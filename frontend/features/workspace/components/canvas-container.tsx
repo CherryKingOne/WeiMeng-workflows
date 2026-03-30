@@ -27,6 +27,7 @@ export interface CardItem {
   id: string;
   type: "image" | "text" | "video" | "video-generation" | "image-generation" | "image-result" | "video-result";
   position: { x: number; y: number };
+  data?: Record<string, unknown>;
   // 连接关系：此卡片连接到哪个卡片
   connectedTo?: string;
   // 是否正在生成中
@@ -45,6 +46,7 @@ interface CanvasContainerProps {
   focusedCardId: string | null;
   onRemoveCard: (id: string) => void;
   onCardFocus: (id: string) => void;
+  onCardDataChange?: (id: string, data: Record<string, unknown>) => void;
   onCardMove?: (id: string, position: { x: number; y: number }) => void;
   onAddConnectedCard?: (parentId: string, type: string, position: { x: number; y: number }) => void;
   connections?: Connection[];
@@ -59,6 +61,7 @@ export function CanvasContainer({
   focusedCardId,
   onRemoveCard,
   onCardFocus,
+  onCardDataChange,
   onCardMove,
   onAddConnectedCard,
   connections = [],
@@ -502,8 +505,10 @@ export function CanvasContainer({
               >
                 <ImageInputCard
                   id={card.id}
+                  data={card.data}
                   onRemove={onRemoveCard}
                   onFocus={onCardFocus}
+                  onDataChange={(data) => onCardDataChange?.(card.id, data)}
                   isFocused={focusedCardId === card.id}
                   hasOutgoingConnection={connections.some((connection) => connection.fromId === card.id)}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
@@ -534,8 +539,10 @@ export function CanvasContainer({
               >
                 <ImageGenerationCard
                   id={card.id}
+                  data={card.data}
                   onRemove={onRemoveCard}
                   onFocus={onCardFocus}
+                  onDataChange={(data) => onCardDataChange?.(card.id, data)}
                   isFocused={focusedCardId === card.id}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   isGenerating={generatingCards.has(card.id)}
@@ -614,8 +621,10 @@ export function CanvasContainer({
               >
                 <VideoGenerationCard
                   id={card.id}
+                  data={card.data}
                   onRemove={onRemoveCard}
                   onFocus={onCardFocus}
+                  onDataChange={(data) => onCardDataChange?.(card.id, data)}
                   isFocused={focusedCardId === card.id}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   isGenerating={generatingCards.has(card.id)}

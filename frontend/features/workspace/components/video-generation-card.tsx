@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useTheme } from "@/features/theme/theme-context";
 
 // Lucide 图标组件
@@ -55,6 +55,8 @@ interface VideoGenerationCardProps {
   onDragStart?: (e: React.MouseEvent) => void;
   onGenerate?: (id: string) => void;
   isGenerating?: boolean;
+  data?: Record<string, unknown>;
+  onDataChange?: (data: Record<string, unknown>) => void;
 }
 
 export function VideoGenerationCard({
@@ -65,6 +67,8 @@ export function VideoGenerationCard({
   onDragStart,
   onGenerate,
   isGenerating = false,
+  data,
+  onDataChange,
 }: VideoGenerationCardProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -75,6 +79,14 @@ export function VideoGenerationCard({
   const [selectedRatio, setSelectedRatio] = useState("16:9");
   const [selectedDuration, setSelectedDuration] = useState("5s");
   const [selectedResolution, setSelectedResolution] = useState("1080P");
+
+  useEffect(() => {
+    setPrompt(typeof data?.prompt === "string" ? data.prompt : "");
+    setSelectedModel(typeof data?.selectedModel === "string" ? data.selectedModel : "Seedance 1.0 lite (文生)");
+    setSelectedRatio(typeof data?.selectedRatio === "string" ? data.selectedRatio : "16:9");
+    setSelectedDuration(typeof data?.selectedDuration === "string" ? data.selectedDuration : "5s");
+    setSelectedResolution(typeof data?.selectedResolution === "string" ? data.selectedResolution : "1080P");
+  }, [data]);
 
   // 处理拖拽开始
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -133,7 +145,17 @@ export function VideoGenerationCard({
           className="w-full flex-1 bg-transparent border-none outline-none resize-none p-5 text-[#e4e4e7] placeholder-[#71717a] text-[15px] leading-relaxed"
           placeholder="输入提示词..."
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => {
+            const nextPrompt = e.target.value;
+            setPrompt(nextPrompt);
+            onDataChange?.({
+              prompt: nextPrompt,
+              selectedModel,
+              selectedRatio,
+              selectedDuration,
+              selectedResolution,
+            });
+          }}
           onClick={(e) => e.stopPropagation()}
         />
 

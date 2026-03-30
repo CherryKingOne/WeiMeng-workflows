@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { CanvasHeader } from "@/features/workspace/components/canvas-header";
 import { CanvasSidebar } from "@/features/workspace/components/canvas-sidebar";
@@ -11,6 +11,7 @@ import { HelpButton } from "@/features/workspace/components/help-button";
 import { StorageModal } from "@/features/workspace/components/storage-modal";
 import { useTheme } from "@/features/theme/theme-context";
 import { workflowService } from "@/core/api";
+import type { WorkflowNode, WorkflowEdge } from "@/core/api/types";
 
 function WorkspaceContent() {
   const { theme } = useTheme();
@@ -31,6 +32,71 @@ function WorkspaceContent() {
   
   // 正在生成中的卡片ID集合
   const [generatingCards, setGeneratingCards] = useState<Set<string>>(new Set());
+  
+  // 用于防止初始化加载时自动保存
+  const isInitialLoad = useRef(true);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 将后端节点数据转换为前端卡片数据
+  const convertNodesToCards = (nodes: WorkflowNode[]): CardItem[] => {
+    return nodes.map((node) => ({
+      id: node.node_id,
+      type: (node.node_type === "video" ? "video-generation" : node.node_type) as CardItem["type"],
+      position: { x: node.position_x, y: node.position_y },
+      data: node.data,
+    }));
+  };
+
+  // 将前端卡片数据转换为后端节点数据
+  const convertCardsToNodes = (cards: CardItem[]): WorkflowNode[] => {
+    return cards.map((card) => ({
+      node_id: card.id,
+      node_type: card.type,
+      position_x: card.position.x,
+      position_y: card.position.y,
+      data: card.data,
+    }));
+  };
+
+  // 将前端连接转换为后端边数据
+  const convertConnectionsToEdges = (connections: Connection[]): WorkflowEdge[] => {
+    return connections.map((conn) => ({
+      source_node_id: conn.fromId,
+      target_node_id: conn.toId,
+    }));
+  };
+
+  // 将后端边数据转换为前端连接
+  const convertEdgesToConnections = (edges: WorkflowEdge[]): Connection[] => {
+    return edges.map((edge) => ({
+      fromId: edge.source_node_id,
+      toId: edge.target_node_id,
+    }));
+  };
+
+  // 保存工作流数据到后端
+  const saveWorkflow = useCallback(async (
+    cardsToSave: CardItem[],
+    connectionsToSave: Connection[],
+    name?: string
+  ) => {
+    if (!workflowId || !workflowService.isAvailable()) return;
+    
+    try {
+      const nodes = convertCardsToNodes(cardsToSave);
+      const edges = convertConnectionsToEdges(connectionsToSave);
+      
+      await workflowService.update({
+        workflow_id: workflowId,
+        name,
+        nodes,
+        edges,
+      });
+      console.log('工作流已保存');
+    } catch (error) {
+      console.error("保存工作流失败:", error);
+    }
+  }, [workflowId]);
 
   // 加载工作流数据
   useEffect(() => {
@@ -41,34 +107,59 @@ function WorkspaceContent() {
       
       try {
         setIsLoading(true);
+        isInitialLoad.current = true;
         const workflow = await workflowService.get({ workflow_id: workflowId });
         setProjectName(workflow.name);
+        
+        const loadedCards = convertNodesToCards(workflow.nodes ?? []);
+        const loadedConnections = convertEdgesToConnections(workflow.edges ?? []);
+        setCards(loadedCards);
+        setConnections(loadedConnections);
+        setGeneratingCards(new Set());
+        console.log(`已加载 ${loadedCards.length} 个节点和 ${loadedConnections.length} 条边`);
       } catch (error) {
         console.error("加载工作流失败:", error);
       } finally {
         setIsLoading(false);
+        isInitialLoad.current = false;
       }
     };
 
     loadWorkflow();
+    
+    // 清理函数
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [workflowId]);
+
+  useEffect(() => {
+    if (!workflowId || isInitialLoad.current) {
+      return;
+    }
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      saveWorkflow(cards, connections, projectName);
+    }, 500);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [cards, connections, projectName, saveWorkflow, workflowId]);
 
   // 处理项目名称修改
   const handleProjectNameChange = useCallback(async (newName: string) => {
     if (!workflowId) return;
     
     setProjectName(newName);
-    
-    if (workflowService.isAvailable()) {
-      try {
-        await workflowService.update({
-          workflow_id: workflowId,
-          name: newName,
-        });
-      } catch (error) {
-        console.error("保存项目名称失败:", error);
-      }
-    }
   }, [workflowId]);
 
   const [contextMenu, setContextMenu] = useState<{
@@ -144,9 +235,19 @@ function WorkspaceContent() {
 
   // 处理卡片移动
   const handleCardMove = useCallback((id: string, position: { x: number; y: number }) => {
+    setCards((prev) => {
+      return prev.map((card) =>
+        card.id === id ? { ...card, position } : card
+      );
+    });
+  }, []);
+
+  const handleCardDataChange = useCallback((id: string, data: Record<string, unknown>) => {
     setCards((prev) =>
       prev.map((card) =>
-        card.id === id ? { ...card, position } : card
+        card.id === id
+          ? { ...card, data: { ...(card.data ?? {}), ...data } }
+          : card
       )
     );
   }, []);
@@ -213,19 +314,13 @@ function WorkspaceContent() {
 
   // 处理侧边栏视频点击 - 添加视频生成卡片
   const handleVideoClick = useCallback(() => {
-    console.log('handleVideoClick called');
     // 在画布中心位置添加视频生成卡片
     const newCard: CardItem = {
       id: `card-${Date.now()}`,
       type: "video-generation",
       position: { x: 1500, y: 1200 }, // 画布中心位置
     };
-    console.log('Creating video card:', newCard);
-    setCards((prev) => {
-      const newCards = [...prev, newCard];
-      console.log('New cards array:', newCards);
-      return newCards;
-    });
+    setCards((prev) => [...prev, newCard]);
     setFocusedCardId(newCard.id);
   }, []);
 
@@ -240,6 +335,7 @@ function WorkspaceContent() {
         focusedCardId={focusedCardId}
         onRemoveCard={handleRemoveCard}
         onCardFocus={handleCardFocus}
+        onCardDataChange={handleCardDataChange}
         onCardMove={handleCardMove}
         onAddConnectedCard={handleAddConnectedCard}
         connections={connections}

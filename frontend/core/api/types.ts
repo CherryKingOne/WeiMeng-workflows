@@ -46,6 +46,28 @@ export interface WorkflowCreateRequest {
   name: string;
 }
 
+/** 节点数据 */
+export interface WorkflowNode {
+  /** 节点 ID */
+  node_id: string;
+  /** 节点类型 */
+  node_type: string;
+  /** X 坐标 */
+  position_x: number;
+  /** Y 坐标 */
+  position_y: number;
+  /** 节点扩展数据 */
+  data?: Record<string, unknown>;
+}
+
+/** 边数据 */
+export interface WorkflowEdge {
+  /** 源节点 ID */
+  source_node_id: string;
+  /** 目标节点 ID */
+  target_node_id: string;
+}
+
 /** 工作流基础信息 - 与后端 WorkflowDTO 对应 */
 export interface WorkflowSummary {
   /** 工作流唯一 ID */
@@ -56,6 +78,10 @@ export interface WorkflowSummary {
   node_count: number;
   /** 边数量 */
   edge_count: number;
+  /** 节点列表（可选，获取详情时返回） */
+  nodes?: WorkflowNode[];
+  /** 边列表（可选，获取详情时返回） */
+  edges?: WorkflowEdge[];
 }
 
 /** 创建工作流响应数据 */
@@ -63,6 +89,14 @@ export type WorkflowCreateResponse = WorkflowSummary;
 
 /** 获取工作流列表响应数据 */
 export type WorkflowListResponse = WorkflowSummary[];
+
+/** 获取单个工作流请求参数 */
+export interface WorkflowGetRequest {
+  /** 工作流 ID */
+  workflow_id: string;
+  /** 是否包含详细信息（节点和边），默认 true */
+  include_details?: boolean;
+}
 
 /** 获取单个工作流响应数据 */
 export type WorkflowGetResponse = WorkflowSummary;
@@ -73,6 +107,10 @@ export interface WorkflowUpdateRequest {
   workflow_id: string;
   /** 新名称（可选） */
   name?: string;
+  /** 节点列表（可选） */
+  nodes?: WorkflowNode[];
+  /** 边列表（可选） */
+  edges?: WorkflowEdge[];
 }
 
 /** 更新工作流响应数据 */

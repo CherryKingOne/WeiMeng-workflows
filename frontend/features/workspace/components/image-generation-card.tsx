@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useTheme } from "@/features/theme/theme-context";
 
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
   const iconPaths: Record<string, string> = {
     x: "M18 6L6 18M6 6l12 12",
+    sparkles: "M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z",
     "chevron-right": "M9 5l7 7-7 7",
     play: "M8 5v14l11-7z",
     expand: "M4 14v6h6M20 10V4h-6M4 20l7-7M20 4l-7 7",
@@ -36,6 +37,8 @@ interface ImageGenerationCardProps {
   onDragStart?: (e: React.MouseEvent) => void;
   onGenerate?: (id: string) => void;
   isGenerating?: boolean;
+  data?: Record<string, unknown>;
+  onDataChange?: (data: Record<string, unknown>) => void;
 }
 
 export function ImageGenerationCard({
@@ -46,6 +49,8 @@ export function ImageGenerationCard({
   onDragStart,
   onGenerate,
   isGenerating = false,
+  data,
+  onDataChange,
 }: ImageGenerationCardProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -54,6 +59,11 @@ export function ImageGenerationCard({
   const [prompt, setPrompt] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [selectedModel, setSelectedModel] = useState("Nano Banana Pro");
+
+  useEffect(() => {
+    setPrompt(typeof data?.prompt === "string" ? data.prompt : "");
+    setSelectedModel(typeof data?.selectedModel === "string" ? data.selectedModel : "Nano Banana Pro");
+  }, [data]);
 
   // 处理拖拽开始
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -86,7 +96,7 @@ export function ImageGenerationCard({
     >
       {/* 头部标题 */}
       <div className="flex items-center gap-2 px-1 mb-3">
-        <span className="text-xl">🍌</span>
+        <LucideIcon name="sparkles" className="w-4 h-4 text-[#a1a1aa]" />
         <span className="text-[#a1a1aa] text-sm font-medium tracking-wide">生成图片</span>
       </div>
 
@@ -113,7 +123,14 @@ export function ImageGenerationCard({
           className="w-full flex-1 bg-transparent border-none outline-none resize-none p-6 text-[#e4e4e7] placeholder-[#52525b] text-base"
           placeholder="输入提示词..."
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => {
+            const nextPrompt = e.target.value;
+            setPrompt(nextPrompt);
+            onDataChange?.({
+              prompt: nextPrompt,
+              selectedModel,
+            });
+          }}
           onClick={(e) => e.stopPropagation()}
         />
 

@@ -54,6 +54,7 @@ class WorkflowSqliteRepository(WorkflowRepository):
                     node_type TEXT NOT NULL,
                     position_x REAL NOT NULL,
                     position_y REAL NOT NULL,
+                    data_json TEXT NOT NULL DEFAULT '{}',
                     UNIQUE(workflow_id, node_id),
                     FOREIGN KEY (workflow_id) REFERENCES workflows(workflow_id) ON DELETE CASCADE
                 )
@@ -74,6 +75,15 @@ class WorkflowSqliteRepository(WorkflowRepository):
             # 创建索引
             conn.execute("CREATE INDEX IF NOT EXISTS idx_nodes_workflow_id ON workflow_nodes(workflow_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_edges_workflow_id ON workflow_edges(workflow_id)")
+
+            columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(workflow_nodes)").fetchall()
+            }
+            if "data_json" not in columns:
+                conn.execute(
+                    "ALTER TABLE workflow_nodes ADD COLUMN data_json TEXT NOT NULL DEFAULT '{}'"
+                )
             
             conn.commit()
 
@@ -93,7 +103,7 @@ class WorkflowSqliteRepository(WorkflowRepository):
     def _get_workflow_nodes(self, conn: sqlite3.Connection, workflow_id: str) -> list[WorkflowNode]:
         """获取工作流的所有节点"""
         rows = conn.execute(
-            "SELECT node_id, node_type, position_x, position_y FROM workflow_nodes WHERE workflow_id = ?",
+            "SELECT node_id, node_type, position_x, position_y, data_json FROM workflow_nodes WHERE workflow_id = ?",
             (workflow_id,)
         ).fetchall()
         
@@ -102,9 +112,22 @@ class WorkflowSqliteRepository(WorkflowRepository):
                 node_id=row["node_id"],
                 node_type=row["node_type"],
                 position=NodeCoordinates(x=row["position_x"], y=row["position_y"]),
+                data=self._parse_node_data(row["data_json"]),
             )
             for row in rows
         ]
+
+    def _parse_node_data(self, raw_data: str | None) -> dict[str, object]:
+        """Parse persisted node metadata."""
+        if not raw_data:
+            return {}
+
+        try:
+            parsed = json.loads(raw_data)
+        except json.JSONDecodeError:
+            return {}
+
+        return parsed if isinstance(parsed, dict) else {}
 
     def _get_workflow_edges(self, conn: sqlite3.Connection, workflow_id: str) -> list[WorkflowEdge]:
         """获取工作流的所有边"""
@@ -147,14 +170,15 @@ class WorkflowSqliteRepository(WorkflowRepository):
             # 插入新的节点
             for node in workflow.nodes:
                 conn.execute("""
-                    INSERT INTO workflow_nodes (workflow_id, node_id, node_type, position_x, position_y)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO workflow_nodes (workflow_id, node_id, node_type, position_x, position_y, data_json)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """, (
                     workflow.workflow_id,
                     node.node_id,
                     node.node_type,
                     node.position.x,
                     node.position.y,
+                    json.dumps(node.data, ensure_ascii=False),
                 ))
             
             # 插入新的边
@@ -228,6 +252,7 @@ class WorkflowSqliteRepository(WorkflowRepository):
                     "node_id": node.node_id,
                     "node_type": node.node_type,
                     "position": {"x": node.position.x, "y": node.position.y},
+                    "data": node.data,
                 }
                 for node in workflow.nodes
             ],

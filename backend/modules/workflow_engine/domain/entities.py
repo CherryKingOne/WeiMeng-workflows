@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 from .value_objects import NodeCoordinates
 
@@ -18,6 +19,7 @@ class WorkflowNode:
     node_id: str
     node_type: str
     position: NodeCoordinates
+    data: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -70,4 +72,3 @@ class Workflow:
             e for e in self.edges
             if not (e.source_node_id == source_node_id and e.target_node_id == target_node_id)
         ]
-
