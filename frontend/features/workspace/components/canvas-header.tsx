@@ -1,36 +1,72 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useTheme } from "@/features/theme/theme-context";
 
 interface CanvasHeaderProps {
   projectName?: string;
   zoom?: number;
+  onProjectNameChange?: (name: string) => void;
 }
 
 export function CanvasHeader({
-  projectName = "未命名项目",
+  projectName: initialProjectName = "未命名项目",
   zoom = 90,
+  onProjectNameChange,
 }: CanvasHeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [projectName, setProjectName] = useState(initialProjectName);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // 当外部传入的 projectName 变化时更新本地状态
+  useEffect(() => {
+    setProjectName(initialProjectName);
+  }, [initialProjectName]);
+  
+  // 进入编辑模式时自动聚焦输入框
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+  
+  const handleSave = () => {
+    const trimmedName = projectName.trim();
+    if (trimmedName) {
+      setProjectName(trimmedName);
+      onProjectNameChange?.(trimmedName);
+    } else {
+      setProjectName(initialProjectName);
+    }
+    setIsEditing(false);
+  };
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      setProjectName(initialProjectName);
+      setIsEditing(false);
+    }
+  };
 
   return (
     <header className="fixed top-4 inset-x-0 z-20 pointer-events-none">
       <div className="flex items-center justify-between px-4 max-w-[100vw] overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {/* 左侧项目信息 */}
-        <button
-          className={`flex shrink-0 items-center space-x-2 px-3 py-1.5 rounded-full border pointer-events-auto cursor-pointer transition-colors ${
+        <div
+          className={`flex shrink-0 items-center space-x-2 px-3 py-1.5 rounded-full border pointer-events-auto transition-colors ${
             isDark
               ? "bg-[#1a1a1a] border-white/5 hover:bg-[#252525]"
               : "bg-white border-black/10 hover:bg-gray-50"
           }`}
-          onClick={() => {
-            // TODO: 点击后显示输入框，允许编辑项目名称
-            console.log("编辑项目名称");
-          }}
         >
-          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
             <svg
               className="w-4 h-4 text-white"
               fill="currentColor"
@@ -39,10 +75,30 @@ export function CanvasHeader({
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
             </svg>
           </div>
-          <span className={`text-sm font-medium ${isDark ? "" : "text-gray-900"}`}>
-            {projectName}
-          </span>
-        </button>
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              onBlur={handleSave}
+              onKeyDown={handleKeyDown}
+              className={`text-sm font-medium bg-transparent outline-none w-32 ${
+                isDark ? "text-white placeholder-gray-500" : "text-gray-900 placeholder-gray-400"
+              }`}
+              placeholder="输入项目名称"
+            />
+          ) : (
+            <button
+              onClick={() => setIsEditing(true)}
+              className={`text-sm font-medium cursor-pointer ${
+                isDark ? "" : "text-gray-900"
+              }`}
+            >
+              {projectName}
+            </button>
+          )}
+        </div>
 
         {/* 中间信息栏 */}
         <div className="glass-panel shrink-0 px-4 py-2 rounded-full flex items-center space-x-3 text-sm pointer-events-auto mx-4">
