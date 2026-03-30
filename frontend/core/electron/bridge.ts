@@ -1,5 +1,6 @@
 export interface WorkflowsDesktopBridge {
   invoke<TResponse>(channel: string, payload?: unknown): Promise<TResponse>;
+  selectDirectory(title?: string): Promise<{ canceled: boolean; filePaths?: string[] }>;
 }
 
 declare global {

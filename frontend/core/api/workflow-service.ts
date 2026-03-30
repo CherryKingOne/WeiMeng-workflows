@@ -235,12 +235,54 @@ class WorkflowService {
   }
 
   /**
+   * ============================================================
+   * 获取工作流存储使用情况
+   * ============================================================
+   * GET workflow.getStorageUsage
+   *
+   * @param params - 查询参数
+   * @param params.workflow_id - 工作流 ID
+   * @returns 存储使用情况，包含节点数、边数、预估大小
+   *
+   * @example
+   * const usage = await workflowService.getStorageUsage({ workflow_id: 'abc-123' });
+   * console.log(usage.nodes_count, usage.edges_count, usage.estimated_size_bytes);
+   */
+  async getStorageUsage(params: { workflow_id: string }): Promise<StorageUsageResponse> {
+    const bridge = this.getBridge();
+    if (!bridge) {
+      throw new Error("Desktop bridge 未初始化，请确保 Electron 已启动");
+    }
+
+    const response = await bridge.invoke<IPCResponse<StorageUsageResponse>>(
+      "workflow.getStorageUsage",
+      { workflow_id: params.workflow_id }
+    );
+
+    if (response.status === "error") {
+      throw new Error(response.message || "获取存储使用情况失败");
+    }
+
+    return response.data!;
+  }
+
+  /**
    * 检查工作流功能是否可用
    * 用于判断当前环境是否支持工作流操作
    */
   isAvailable(): boolean {
     return this.hasBridge();
   }
+}
+
+/** 存储使用情况响应类型 */
+export interface StorageUsageResponse {
+  /** 节点数量 */
+  nodes_count: number;
+  /** 边数量 */
+  edges_count: number;
+  /** 预估大小（字节） */
+  estimated_size_bytes: number;
 }
 
 /** 工作流服务单例 */

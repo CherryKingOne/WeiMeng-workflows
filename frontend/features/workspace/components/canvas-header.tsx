@@ -8,12 +8,14 @@ interface CanvasHeaderProps {
   projectName?: string;
   zoom?: number;
   onProjectNameChange?: (name: string) => void;
+  onStorageClick?: () => void;
 }
 
 export function CanvasHeader({
   projectName: initialProjectName = "未命名项目",
   zoom = 90,
   onProjectNameChange,
+  onStorageClick,
 }: CanvasHeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
@@ -250,7 +252,10 @@ export function CanvasHeader({
               </svg>
               <span>边框</span>
             </button>
-            <button className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}>
+            <button
+              onClick={onStorageClick}
+              className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}
+            >
               <svg
                 className="w-4 h-4"
                 fill="none"

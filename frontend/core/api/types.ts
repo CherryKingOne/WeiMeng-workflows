@@ -89,6 +89,16 @@ export interface WorkflowDeleteResponse {
   deleted: boolean;
 }
 
+/** 存储使用情况 - 工作流的节点和边统计 */
+export interface StorageUsageResponse {
+  /** 节点数量 */
+  nodes_count: number;
+  /** 边数量 */
+  edges_count: number;
+  /** 预估大小（字节） */
+  estimated_size_bytes: number;
+}
+
 /**
  * ============================================================
  * Settings 模块 - 设置相关类型定义
@@ -126,6 +136,14 @@ export interface SettingsUpdateRequest {
 
 /** 更新设置响应数据 */
 export type SettingsUpdateResponse = SettingItem;
+
+/** 目录设置 - 下载目录和缓存目录 */
+export interface DirectorySettings {
+  /** 下载目录路径 */
+  download_dir: string;
+  /** 缓存目录路径 */
+  cache_dir: string;
+}
 
 /**
  * ============================================================

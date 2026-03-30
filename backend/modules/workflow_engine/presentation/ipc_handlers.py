@@ -63,9 +63,19 @@ def register_handlers(router: IPCRouter, container: ApplicationContainer) -> Non
             return {"status": "error", "message": "Workflow not found"}
         return {"status": "success", "data": result.to_dict()}
 
+    def handle_get_storage_usage(payload: dict[str, object]) -> dict[str, object]:
+        """获取指定工作流的存储使用情况"""
+        workflow_id = str(payload.get("workflow_id", "")).strip()
+        if not workflow_id:
+            return {"status": "error", "message": "Missing workflow_id"}
+        
+        storage_usage = container.workflow_repository.get_storage_usage(workflow_id)
+        return {"status": "success", "data": storage_usage}
+
     router.register("workflow.create", handle_create_workflow)
     router.register("workflow.list", handle_list_workflows)
     router.register("workflow.get", handle_get_workflow)
     router.register("workflow.delete", handle_delete_workflow)
     router.register("workflow.update", handle_update_workflow)
+    router.register("workflow.getStorageUsage", handle_get_storage_usage)
 

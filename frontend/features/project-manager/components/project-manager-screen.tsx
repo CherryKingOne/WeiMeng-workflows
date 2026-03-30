@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -77,9 +77,13 @@ export function ProjectManagerScreen() {
     loadWorkflows();
   }, [loadWorkflows]);
 
-  // 统一跳转函数 - 使用 useCallback 避免依赖变化
-  const openWorkspace = useCallback(() => {
-    router.push("/workspace");
+  // 统一跳转函数 - 传递工作流 ID 到工作区
+  const openWorkspace = useCallback((workflowId?: string) => {
+    if (workflowId) {
+      router.push(`/workspace?id=${workflowId}`);
+    } else {
+      router.push("/workspace");
+    }
   }, [router]);
 
   /**
@@ -108,6 +112,53 @@ export function ProjectManagerScreen() {
       openWorkspace();
     }
   }, [openWorkspace]);
+
+  /**
+   * ============================================================
+   * 删除工作流
+   * ============================================================
+   * 点击删除按钮时调用
+   * 调用 workflowService.delete() 删除工作流
+   */
+  const handleDeleteWorkflow = useCallback(async (projectId: string, _projectName: string) => {
+    if (!workflowService.isAvailable()) return;
+
+    if (!confirm("确定要删除这个项目吗？此操作无法撤销。")) {
+      return;
+    }
+
+    try {
+      await workflowService.delete({ workflow_id: projectId });
+      setWorkflows((prev) => prev.filter((wf) => wf.workflow_id !== projectId));
+    } catch (error) {
+      console.error("删除工作流失败:", error);
+    }
+  }, []);
+
+  /**
+   * ============================================================
+   * 重命名工作流
+   * ============================================================
+   * 项目卡片点击编辑按钮后，输入新名称并保存
+   */
+  const handleRenameWorkflow = useCallback((projectId: string, newName: string) => {
+    if (!newName || !newName.trim()) return;
+
+    workflowService.update({
+      workflow_id: projectId,
+      name: newName.trim(),
+    }).then(() => {
+      setWorkflows((prev) =>
+        prev.map((wf) =>
+          wf.workflow_id === projectId
+            ? { ...wf, name: newName.trim() }
+            : wf
+        )
+      );
+    }).catch((error) => {
+      console.error("重命名工作流失败:", error);
+    });
+  }, [workflows]);
 
   /**
    * ============================================================
@@ -249,7 +300,9 @@ export function ProjectManagerScreen() {
                 <ProjectCard
                   key={project.id}
                   project={project}
-                  onOpen={openWorkspace}
+                  onOpen={() => openWorkspace(project.id)}
+                  onDelete={handleDeleteWorkflow}
+                  onRename={handleRenameWorkflow}
                 />
               ))
             ) : (
@@ -311,27 +364,108 @@ export function ProjectManagerScreen() {
 function ProjectCard({
   project,
   onOpen,
+  onDelete,
+  onRename,
 }: {
   project: ProjectSummary;
   onOpen: () => void;
+  onDelete?: (projectId: string, newName: string) => void;
+  onRename?: (projectId: string, newName: string) => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(project.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 开始编辑时聚焦输入框
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  // 开始编辑
+  const handleStartEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditName(project.name);
+    setIsEditing(true);
+  };
+
+  // 保存编辑
+  const handleSave = () => {
+    const trimmedName = editName.trim();
+    if (trimmedName && trimmedName !== project.name) {
+      onRename?.(project.id, trimmedName);
+    }
+    setIsEditing(false);
+  };
+
+  // 取消编辑
+  const handleCancel = () => {
+    setEditName(project.name);
+    setIsEditing(false);
+  };
+
+  // 按键处理
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      handleCancel();
+    }
+    // 阻止事件冒泡，避免触发卡片点击
+    e.stopPropagation();
+  };
+
   return (
     <article
       role="button"
       tabIndex={0}
       onClick={onOpen}
-      onKeyDown={(event) => handleEnterOpen(event, onOpen)}
+      onKeyDown={(event) => !isEditing && handleEnterOpen(event, onOpen)}
       className="group cursor-pointer rounded-[24px] border border-[var(--pm-border)] bg-[var(--pm-surface)] p-5 shadow-[var(--pm-shadow)] transition duration-200 hover:border-[var(--pm-accent-border)] hover:-translate-y-0.5"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-[var(--pm-text)]">
-            {project.name}
-          </h2>
+        <div className="min-w-0 flex-1">
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onBlur={handleSave}
+              onKeyDown={handleKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full truncate rounded border border-[var(--pm-accent)] bg-[var(--pm-surface)] px-2 py-1 text-base font-semibold text-[var(--pm-text)] outline-none"
+            />
+          ) : (
+            <h2 
+              onClick={handleStartEdit}
+              className="truncate text-base font-semibold text-[var(--pm-text)] cursor-text"
+            >
+              {project.name}
+            </h2>
+          )}
         </div>
         <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
-          <CardActionButton label="编辑" icon={<EditIcon />} />
-          <CardActionButton danger label="删除" icon={<TrashIcon />} />
+          {!isEditing && (
+            <>
+              <CardActionButton 
+                label="编辑" 
+                icon={<EditIcon />} 
+                onClick={handleStartEdit}
+              />
+              <CardActionButton 
+                danger 
+                label="删除" 
+                icon={<TrashIcon />} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete?.(project.id, project.name);
+                }}
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -377,18 +511,18 @@ function CardActionButton({
   danger = false,
   icon,
   label,
+  onClick,
 }: {
   danger?: boolean;
   icon: React.ReactNode;
   label: string;
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
-      onClick={(event) => {
-        event.stopPropagation();
-      }}
+      onClick={onClick}
       className={`inline-flex h-8 w-8 items-center justify-center rounded-xl transition ${
         danger
           ? "text-red-400 hover:bg-red-500/10"

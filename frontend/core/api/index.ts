@@ -87,14 +87,27 @@ export type {
   ProjectSummary,
 } from "./types";
 
+// StorageUsageResponse 从 workflow-service 导出
+export type { StorageUsageResponse } from "./workflow-service";
+
 // Settings 设置服务
 export { settingsService } from "./settings-service";
+export {
+  getDownloadDir,
+  setDownloadDir,
+  getCacheDir,
+  setCacheDir,
+  selectDirectory,
+  clearCache,
+} from "./settings-service";
 export type {
   SettingsListResponse,
   SettingsUpdateRequest,
   SettingsUpdateResponse,
   SettingScope,
+  DirectorySettings,
 } from "./types";
+export type { ClearCacheResult } from "./settings-service";
 
 // Nodes Market 节点市场服务
 export { nodesMarketService } from "./nodes-market-service";

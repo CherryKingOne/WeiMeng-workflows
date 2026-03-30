@@ -24,3 +24,15 @@ class WorkflowRepository(ABC):
     def delete(self, workflow_id: str) -> None:
         """Delete a workflow by its identifier."""
 
+    @abstractmethod
+    def get_storage_usage(self, workflow_id: str) -> dict[str, int]:
+        """获取指定工作流的存储使用情况（字节）
+        
+        返回格式:
+        {
+            "nodes_count": 节点数量,
+            "edges_count": 边数量,
+            "estimated_size_bytes": 预估大小（字节）
+        }
+        """
+

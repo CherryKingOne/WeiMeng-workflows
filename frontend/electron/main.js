@@ -22,7 +22,7 @@
  * ============================================================
  */
 
-const { app, BrowserWindow, ipcMain, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu, dialog } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 
@@ -43,11 +43,19 @@ let pythonProcess = null;
  * 通过 stdin/stdout 进行 JSON-RPC 通信
  */
 function startPythonBackend() {
-  const backendPath = path.join(__dirname, "..", "backend");
+  // __dirname 是 frontend/electron，所以需要两级返回到项目根目录
+  const projectRoot = path.join(__dirname, "..", "..");
+  const backendPath = path.join(projectRoot, "backend");
 
+  console.log("[Electron] 项目根目录:", projectRoot);
+  console.log("[Electron] 后端目录:", backendPath);
   console.log("[Electron] 启动 Python IPC 服务器...");
 
-  pythonProcess = spawn("python", ["ipc_server.py"], {
+  // 使用 uv 虚拟环境中的 Python
+  const pythonPath = path.join(backendPath, ".venv", "bin", "python");
+  console.log("[Electron] Python 路径:", pythonPath);
+  
+  pythonProcess = spawn(pythonPath, ["ipc_server.py"], {
     cwd: backendPath,
     stdio: ["pipe", "pipe", "pipe"],
     env: { ...process.env, PYTHONUNBUFFERED: "1" },
@@ -275,6 +283,15 @@ function setupIPC() {
   // 获取应用版本
   ipcMain.handle("app:version", () => {
     return app.getVersion();
+  });
+
+  // 选择文件夹目录
+  ipcMain.handle("dialog:selectDirectory", async (event, title) => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: title || "选择目录",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    return result;
   });
 
   console.log("[Electron] IPC 处理器已注册");

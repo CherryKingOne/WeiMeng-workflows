@@ -67,6 +67,15 @@ contextBridge.exposeInMainWorld("workflowsDesktop", {
   getVersion() {
     return ipcRenderer.invoke("app:version");
   },
+
+  /**
+   * 选择文件夹目录
+   * @param {string} title - 对话框标题
+   * @returns {Promise<{canceled: boolean, filePaths?: string[]}>}
+   */
+  selectDirectory(title) {
+    return ipcRenderer.invoke("dialog:selectDirectory", title);
+  },
 });
 
 console.log("[Preload] workflowsDesktop API 已注入");
