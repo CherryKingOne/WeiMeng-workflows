@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { CanvasHeader } from "@/features/workspace/components/canvas-header";
-import { CanvasSidebar } from "@/features/workspace/components/canvas-sidebar";
 import { ContextMenu } from "@/features/workspace/components/context-menu";
 import { CanvasContainer, CardItem, Connection } from "@/features/workspace/components/canvas-container";
 import { Minimap } from "@/features/workspace/components/minimap";
@@ -374,9 +373,6 @@ function WorkspaceContent() {
         onProjectNameChange={handleProjectNameChange}
         onStorageClick={openStorageModal} 
       />
-
-      {/* 左侧工具栏 */}
-      <CanvasSidebar onVideoClick={handleVideoClick} />
 
       {/* 左下角帮助按钮 */}
       <HelpButton />
