@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分镜节点 UI 样式全集</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 还原暗色点阵背景 */
+        body {
+            background-color: #0e0e0e;
+            background-image: radial-gradient(circle at center, #333 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Sora 下拉框高光质感复刻 */
+        .glass-select {
+            background: linear-gradient(180deg, #424242 0%, #1e1e1e 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 2px rgba(0,0,0,0.5);
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 15l5 5 5-5M7 9l5-5 5 5'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 24px;
+        }
+        
+        /* 普通下拉框 */
+        .normal-select {
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 15l5 5 5-5M7 9l5-5 5 5'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 6px center;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-300 font-sans selection:bg-gray-700 py-20 flex flex-col items-center gap-24">
+
+    <!-- ==========================================
+         模块 1：空状态 - 列表视图 (对应图0)
+    =========================================== -->
+    <div class="flex flex-col w-[820px]">
+        <div class="mb-4 text-white text-lg font-bold border-l-4 border-blue-500 pl-3">样式 1：空状态 - 列表视图 (图0)</div>
+        
+        <div class="text-gray-500 text-[13px] mb-2 pl-2">分镜节点</div>
+        <div class="relative bg-[#171717] rounded-xl border border-[#3a3a3a] shadow-2xl">
+            <!-- 左侧连接点 -->
+            <div class="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10"></div>
+            
+            <!-- 顶栏 -->
+            <div class="flex justify-between items-center p-3.5 border-b border-[#2a2a2a]">
+                <div class="text-[13px] font-medium text-gray-200 pl-1">分镜表</div>
+                <div class="flex bg-transparent border border-[#444] rounded overflow-hidden">
+                    <button class="bg-[#333] text-gray-200 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg> 列表
+                    </button>
+                    <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> 宫格
+                    </button>
+                    <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="9" x2="9" y2="21"></line><line x1="15" y1="9" x2="15" y2="21"></line></svg> 表格
+                    </button>
+                </div>
+            </div>
+
+            <!-- 空状态主体 -->
+            <div class="p-4">
+                <div class="w-full h-[240px] border-[1.5px] border-dashed border-[#3a3a3a] rounded-lg flex flex-col items-center justify-center bg-[#1a1a1a]">
+                    <svg class="text-[#555] mb-4" width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    <div class="text-sm text-[#777]">暂无分镜，请添加或同步分析结果</div>
+                </div>
+                <!-- 底部添加按钮占位区 -->
+                <div class="h-[120px]"></div>
+            </div>
+            
+            <div class="p-4 pt-0 absolute bottom-0 w-full">
+                <button class="w-full py-2.5 text-[13px] text-[#888] border border-dashed border-[#444] rounded-lg flex items-center justify-center gap-1.5 bg-[#171717]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    添加空白镜头
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==========================================
+         模块 2：空状态 - 宫格视图 (对应图1)
+    =========================================== -->
+    <div class="flex flex-col w-[820px]">
+        <div class="mb-4 text-white text-lg font-bold border-l-4 border-blue-500 pl-3">样式 2：空状态 - 宫格视图 (图1)</div>
+        
+        <div class="text-gray-500 text-[13px] mb-2 pl-2">分镜节点</div>
+        <div class="relative bg-[#171717] rounded-xl border border-[#3a3a3a] shadow-2xl">
+            <!-- 左侧连接点 -->
+            <div class="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10"></div>
+            
+            <!-- 固化显示的 Hover 态元素：右上角关闭、右侧加号 (对应图7,8,9中的交互) -->
+            <button class="absolute -right-[12px] -top-[12px] w-[24px] h-[24px] bg-[#222] border border-[#3a3a3a] rounded-full flex items-center justify-center text-gray-400 z-20"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <button class="absolute -right-[18px] top-1/2 -translate-y-1/2 w-[36px] h-[36px] bg-[#111] border border-[#4a4a4a] rounded-full flex items-center justify-center text-white shadow-[0_0_10px_rgba(0,0,0,0.5)] z-20"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+
+            <!-- 顶栏 -->
+            <div class="flex justify-between items-center p-3.5 border-b border-[#2a2a2a]">
+                <div class="text-[13px] font-medium text-gray-200 pl-1">分镜表</div>
+                <div class="flex bg-transparent border border-[#444] rounded overflow-hidden">
+                    <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg> 列表
+                    </button>
+                    <button class="bg-[#333] text-gray-200 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> 宫格
+                    </button>
+                    <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="9" x2="9" y2="21"></line><line x1="15" y1="9" x2="15" y2="21"></line></svg> 表格
+                    </button>
+                </div>
+            </div>
+            <!-- 空状态主体 -->
+            <div class="p-4">
+                <div class="w-full h-[240px] border-[1.5px] border-dashed border-[#3a3a3a] rounded-lg flex flex-col items-center justify-center bg-[#1a1a1a]">
+                    <svg class="text-[#555] mb-4" width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <div class="text-sm text-[#777]">暂无分镜，请添加或同步分析结果</div>
+                </div>
+                <div class="h-[120px]"></div>
+            </div>
+            <!-- 底部按钮 -->
+            <div class="p-4 pt-0 absolute bottom-0 w-full">
+                <button class="w-full py-2.5 text-[13px] text-[#888] border border-dashed border-[#444] rounded-lg flex items-center justify-center gap-1.5 bg-[#171717]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 添加空白镜头
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==========================================
+         模块 3：空状态 - 表格视图 (对应图2)
+    =========================================== -->
+    <div class="flex flex-col w-[820px]">
+        <div class="mb-4 text-white text-lg font-bold border-l-4 border-blue-500 pl-3">样式 3：空状态 - 表格视图 (图2)</div>
+        
+        <div class="text-gray-500 text-[13px] mb-2 pl-2">分镜节点</div>
+        <div class="relative bg-[#171717] rounded-xl border border-[#3a3a3a] shadow-2xl">
+            <div class="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10"></div>
+            
+            <div class="flex justify-between items-center p-3.5 border-b border-[#2a2a2a]">
+                <div class="text-[13px] font-medium text-gray-200 pl-1">分镜表</div>
+                <div class="flex bg-transparent border border-[#444] rounded overflow-hidden">
+                    <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg> 列表
+                    </button>
+                    <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> 宫格
+                    </button>
+                    <button class="bg-[#333] text-gray-200 px-3 py-1.5 text-xs flex items-center gap-1.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="9" x2="9" y2="21"></line><line x1="15" y1="9" x2="15" y2="21"></line></svg> 表格
+                    </button>
+                </div>
+            </div>
+            <div class="p-4">
+                <div class="w-full h-[240px] border-[1.5px] border-dashed border-[#3a3a3a] rounded-lg flex flex-col items-center justify-center bg-[#1a1a1a]">
+                    <svg class="text-[#555] mb-4" width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="9" x2="9" y2="21"></line><line x1="15" y1="9" x2="15" y2="21"></line></svg>
+                    <div class="text-sm text-[#777]">暂无分镜，请添加或同步分析结果</div>
+                </div>
+                <div class="h-[120px]"></div>
+            </div>
+            <div class="p-4 pt-0 absolute bottom-0 w-full">
+                <button class="w-full py-2.5 text-[13px] text-[#888] border border-dashed border-[#444] rounded-lg flex items-center justify-center gap-1.5 bg-[#171717]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 添加空白镜头
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==========================================
+         模块 4：有内容 - 列表模式 (对应图3/图7)
+    =========================================== -->
+    <div class="flex flex-col w-[820px]">
+        <div class="mb-4 text-white text-lg font-bold border-l-4 border-green-500 pl-3">样式 4：添加内容后 - 列表模式展示 (图3/图7)</div>
+        
+        <div class="text-gray-500 text-[13px] mb-2 pl-2">分镜节点</div>
+        <div class="relative bg-[#171717] rounded-xl border border-[#3a3a3a] shadow-2xl pb-4">
+            <div class="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10"></div>
+            
+            <!-- 固化显示的 Hover 外置按钮 -->
+            <button class="absolute -right-[12px] -top-[12px] w-[24px] h-[24px] bg-[#222] border border-[#3a3a3a] rounded-full flex items-center justify-center text-gray-400 z-20"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <button class="absolute -right-[18px] top-1/2 -translate-y-1/2 w-[36px] h-[36px] bg-[#111] border border-[#4a4a4a] rounded-full flex items-center justify-center text-white shadow-[0_0_10px_rgba(0,0,0,0.5)] z-20"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+
+            <!-- 顶栏 (包含批量按钮) -->
+            <div class="flex justify-between items-center p-3.5 border-b border-[#2a2a2a]">
+                <div class="text-[13px] font-medium text-gray-200 pl-1">分镜表</div>
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <button class="px-3 py-1.5 text-xs text-gray-300 border border-[#444] rounded flex items-center gap-1.5"><span class="text-[10px] border border-gray-400 px-0.5 rounded-sm">T</span> 批量添加前缀</button>
+                        <button class="px-3 py-1.5 text-xs text-gray-300 border border-[#444] rounded flex items-center gap-1.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg> 批量设置</button>
+                    </div>
+                    <div class="flex border border-[#444] rounded overflow-hidden">
+                        <button class="bg-[#333] text-gray-200 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg> 列表</button>
+                        <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> 宫格</button>
+                        <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="9" x2="9" y2="21"></line><line x1="15" y1="9" x2="15" y2="21"></line></svg> 表格</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 列表主体卡片内容 -->
+            <div class="p-4 min-h-[360px]">
+                <div class="flex gap-4 p-4 bg-[#1e1e1e] rounded-xl">
+                    <div class="text-[13px] font-bold text-[#555] w-4 mt-1">1</div>
+                    <!-- 占位图区域 -->
+                    <div class="w-[280px] h-[160px] bg-[#000] rounded-lg flex flex-col items-center justify-center border border-[#111]">
+                        <svg class="text-[#555] mb-2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        <span class="text-xs text-[#666]">点击粘贴/拖入</span>
+                        <span class="text-[10px] text-[#444] mt-1">支持1-3张图片</span>
+                    </div>
+
+                    <!-- 参数及输入框 -->
+                    <div class="flex-1 flex flex-col gap-3 pl-2">
+                        <div class="flex items-center gap-2">
+                            <select class="glass-select border border-black/80 rounded px-2 py-1 text-xs text-white outline-none w-[180px] h-[26px]"><option>Sora 2</option></select>
+                            <select class="normal-select bg-[#262626] border border-[#3a3a3a] rounded px-2 py-1 text-xs text-gray-300 outline-none w-[64px] h-[26px]"><option>16:9</option></select>
+                            <select class="normal-select bg-[#262626] border border-[#3a3a3a] rounded px-2 py-1 text-xs text-gray-300 outline-none w-[64px] h-[26px]"><option>15秒</option></select>
+                            <label class="flex items-center gap-1.5 text-xs text-[#888] ml-1"><input type="checkbox" class="w-3 h-3 appearance-none bg-[#2a2a2a] border border-[#444] rounded-sm checked:bg-white checked:border-white"> HD</label>
+                        </div>
+                        <div class="text-xs text-[#555] mt-1">画面描述...</div>
+                        <textarea class="flex-1 bg-transparent border border-[#3a3a3a] rounded-lg p-3 text-xs text-gray-300 resize-none outline-none placeholder-[#555]" placeholder="等待生成提示词..."></textarea>
+                    </div>
+
+                    <!-- 操作栏图标 -->
+                    <div class="flex flex-col gap-2.5 justify-center pl-2">
+                        <button class="w-[30px] h-[30px] rounded border border-[#3a3a3a] flex items-center justify-center text-gray-400"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></button>
+                        <button class="w-[30px] h-[30px] rounded border border-[#3a3a3a] flex items-center justify-center text-gray-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
+                        <button class="w-[30px] h-[30px] rounded border border-[#3a3a3a] flex items-center justify-center text-gray-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></button>
+                        <button class="w-[30px] h-[30px] rounded border border-[#3a3a3a] flex items-center justify-center text-gray-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4">
+                <button class="w-full py-2.5 text-[13px] text-[#888] border border-dashed border-[#444] rounded-lg flex items-center justify-center gap-1.5 bg-[#171717]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 添加空白镜头
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==========================================
+         模块 5：有内容 - 宫格模式 (对应图4/图8)
+    =========================================== -->
+    <div class="flex flex-col w-[820px]">
+        <div class="mb-4 text-white text-lg font-bold border-l-4 border-green-500 pl-3">样式 5：添加内容后 - 宫格模式展示 (图4/图8)</div>
+        
+        <div class="text-gray-500 text-[13px] mb-2 pl-2">分镜节点</div>
+        <div class="relative bg-[#171717] rounded-xl border border-[#3a3a3a] shadow-2xl pb-4">
+            <div class="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10"></div>
+            
+            <button class="absolute -right-[12px] -top-[12px] w-[24px] h-[24px] bg-[#222] border border-[#3a3a3a] rounded-full flex items-center justify-center text-gray-400 z-20"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <button class="absolute -right-[18px] top-1/2 -translate-y-1/2 w-[36px] h-[36px] bg-[#111] border border-[#4a4a4a] rounded-full flex items-center justify-center text-white shadow-[0_0_10px_rgba(0,0,0,0.5)] z-20"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+
+            <!-- 顶栏 (宫格高亮) -->
+            <div class="flex justify-between items-center p-3.5 border-b border-[#2a2a2a]">
+                <div class="text-[13px] font-medium text-gray-200 pl-1">分镜表</div>
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <button class="px-3 py-1.5 text-xs text-gray-300 border border-[#444] rounded flex items-center gap-1.5"><span class="text-[10px] border border-gray-400 px-0.5 rounded-sm">T</span> 批量添加前缀</button>
+                        <button class="px-3 py-1.5 text-xs text-gray-300 border border-[#444] rounded flex items-center gap-1.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg> 批量设置</button>
+                    </div>
+                    <div class="flex border border-[#444] rounded overflow-hidden">
+                        <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg> 列表</button>
+                        <button class="bg-[#333] text-gray-200 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> 宫格</button>
+                        <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="9" x2="9" y2="21"></line><line x1="15" y1="9" x2="15" y2="21"></line></svg> 表格</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 宫格内容区 -->
+            <div class="p-4 min-h-[360px]">
+                <div class="text-xs text-[#666] mb-3 pl-1">共 1 个镜头</div>
+                <div class="flex gap-4 flex-wrap border-b border-[#2a2a2a] pb-4">
+                    <!-- 宫格卡片 -->
+                    <div class="w-[280px] h-[160px] bg-[#222] border border-[#3a3a3a] rounded-lg relative flex flex-col items-center justify-center">
+                        <span class="absolute top-2.5 left-2.5 bg-[#111] text-[10px] px-1.5 py-0.5 rounded text-gray-300 font-bold border border-[#222]">1</span>
+                        <svg class="text-[#555] mb-2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        <span class="text-xs text-[#777]">镜头 1</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4">
+                <button class="w-full py-2.5 text-[13px] text-[#888] border border-dashed border-[#444] rounded-lg flex items-center justify-center gap-1.5 bg-[#171717]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 添加空白镜头
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==========================================
+         模块 6：有内容 - 表格模式 (对应图5/图6拉伸态/图9)
+    =========================================== -->
+    <div class="flex flex-col w-[1060px]"> <!-- 注意：表格模式面板拉宽展示完整属性 -->
+        <div class="mb-4 text-white text-lg font-bold border-l-4 border-purple-500 pl-3">样式 6：添加内容后 - 表格模式完全拉伸展示 (图5/图6/图9)</div>
+        
+        <div class="text-gray-500 text-[13px] mb-2 pl-2">分镜节点</div>
+        <div class="relative bg-[#171717] rounded-xl border border-[#3a3a3a] shadow-2xl pb-4">
+            <div class="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10"></div>
+            
+            <button class="absolute -right-[12px] -top-[12px] w-[24px] h-[24px] bg-[#222] border border-[#3a3a3a] rounded-full flex items-center justify-center text-gray-400 z-20"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <button class="absolute -right-[18px] top-1/2 -translate-y-1/2 w-[36px] h-[36px] bg-[#111] border border-[#4a4a4a] rounded-full flex items-center justify-center text-white shadow-[0_0_10px_rgba(0,0,0,0.5)] z-20"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+
+            <!-- 顶栏 (表格高亮) -->
+            <div class="flex justify-between items-center p-3.5 border-b border-[#2a2a2a]">
+                <div class="text-[13px] font-medium text-gray-200 pl-1">分镜表</div>
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <button class="px-3 py-1.5 text-xs text-gray-300 border border-[#444] rounded flex items-center gap-1.5"><span class="text-[10px] border border-gray-400 px-0.5 rounded-sm">T</span> 批量添加前缀</button>
+                        <button class="px-3 py-1.5 text-xs text-gray-300 border border-[#444] rounded flex items-center gap-1.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg> 批量设置</button>
+                    </div>
+                    <div class="flex border border-[#444] rounded overflow-hidden">
+                        <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg> 列表</button>
+                        <button class="text-gray-400 px-3 py-1.5 text-xs flex items-center gap-1.5 border-r border-[#444]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> 宫格</button>
+                        <button class="bg-[#333] text-gray-200 px-3 py-1.5 text-xs flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="9" x2="9" y2="21"></line><line x1="15" y1="9" x2="15" y2="21"></line></svg> 表格</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 表格二级工具栏 -->
+            <div class="flex justify-between items-center px-4 py-2 border-b border-[#2a2a2a] bg-[#1c1c1c]">
+                <label class="flex items-center gap-2 text-xs text-gray-400">
+                    <input type="checkbox" class="w-3.5 h-3.5 rounded-sm appearance-none bg-[#2a2a2a] border border-[#444]">已选择 0 个镜头
+                </label>
+                <div class="flex gap-2">
+                    <button class="px-3 py-1.5 text-[11px] bg-[#222] text-[#555] rounded flex items-center gap-1 border border-transparent"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> 批量下载</button>
+                    <button class="px-3 py-1.5 text-[11px] bg-[#222] text-[#555] rounded flex items-center gap-1 border border-transparent"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> 批量删除</button>
+                </div>
+            </div>
+
+            <!-- 完整表格区域 -->
+            <div class="overflow-x-auto min-h-[300px]">
+                <table class="w-full text-left text-xs text-gray-300 min-w-[980px] border-collapse">
+                    <thead class="border-b border-[#2a2a2a] text-[#888] font-normal">
+                        <tr>
+                            <th class="py-3 px-4 w-10 font-normal"><input type="checkbox" class="w-3.5 h-3.5 rounded-sm appearance-none bg-[#2a2a2a] border border-[#444]"></th>
+                            <th class="py-3 px-2 w-12 font-normal text-center text-[#ccc]">镜号</th>
+                            <th class="py-3 px-4 w-[100px] font-normal text-[#ccc]">画面</th>
+                            <th class="py-3 px-4 w-[240px] font-normal text-[#ccc]">中英画面描述</th>
+                            <th class="py-3 px-4 w-[140px] font-normal text-[#ccc]">对白/旁白</th>
+                            <th class="py-3 px-2 font-normal text-center text-[#ccc]">角色</th>
+                            <th class="py-3 px-2 font-normal text-center text-[#ccc]">景别</th>
+                            <th class="py-3 px-2 font-normal text-center text-[#ccc]">角度</th>
+                            <th class="py-3 px-2 font-normal text-center text-[#ccc]">运镜</th>
+                            <th class="py-3 px-2 font-normal text-center text-[#ccc]">时长</th>
+                            <th class="py-3 px-4 font-normal text-center text-[#ccc]">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b border-[#2a2a2a] bg-[#1a1a1a]">
+                            <td class="py-4 px-4"><input type="checkbox" class="w-3.5 h-3.5 rounded-sm appearance-none bg-[#2a2a2a] border border-[#444]"></td>
+                            <td class="py-4 px-2 text-center text-[#888] font-bold">1</td>
+                            <td class="py-4 px-4">
+                                <div class="w-[60px] h-[40px] bg-[#2a2a2a] rounded flex items-center justify-center text-[10px] text-[#555] border border-[#3a3a3a]">无图</div>
+                            </td>
+                            <td class="py-4 px-4">
+                                <div class="flex flex-col gap-1.5">
+                                    <input type="text" placeholder="中文描述" class="w-full bg-[#222] border border-[#3a3a3a] rounded px-2.5 py-1.5 text-xs outline-none placeholder-[#555]">
+                                    <input type="text" placeholder="English Description" class="w-full bg-[#222] border border-[#3a3a3a] rounded px-2.5 py-1.5 text-xs outline-none placeholder-[#555]">
+                                </div>
+                            </td>
+                            <td class="py-4 px-4">
+                                <input type="text" placeholder="对白/旁白" class="w-full bg-[#222] border border-[#3a3a3a] rounded px-2.5 py-1.5 text-xs outline-none placeholder-[#555]">
+                            </td>
+                            <td class="py-4 px-2 text-center"><button class="border border-[#3a3a3a] bg-[#222] text-[#888] px-2 py-1 rounded text-[11px]">角色</button></td>
+                            <td class="py-4 px-2 text-center"><button class="border border-[#3a3a3a] bg-[#222] text-[#888] px-2 py-1 rounded text-[11px]">景别</button></td>
+                            <td class="py-4 px-2 text-center"><button class="border border-[#3a3a3a] bg-[#222] text-[#888] px-2 py-1 rounded text-[11px]">角度</button></td>
+                            <td class="py-4 px-2 text-center"><button class="border border-[#3a3a3a] bg-[#222] text-[#888] px-2 py-1 rounded text-[11px]">运镜</button></td>
+                            <td class="py-4 px-2 text-center"><button class="border border-[#3a3a3a] bg-[#222] text-[#888] px-2 py-1 rounded text-[11px]">时长</button></td>
+                            <td class="py-4 px-4 text-center">
+                                <button class="bg-[#ba1a1a] text-white w-7 h-7 rounded flex items-center justify-center mx-auto">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="px-4 border-t border-[#2a2a2a] pt-4">
+                <button class="w-full py-2.5 text-[13px] text-[#888] border border-dashed border-[#444] rounded-lg flex items-center justify-center gap-1.5 bg-[#171717]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 添加空白镜头
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
