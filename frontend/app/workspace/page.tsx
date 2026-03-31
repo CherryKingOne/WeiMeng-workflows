@@ -32,6 +32,9 @@ function WorkspaceContent() {
   // 正在生成中的卡片ID集合
   const [generatingCards, setGeneratingCards] = useState<Set<string>>(new Set());
   
+  // 画布缩放状态 (10% - 200%)
+  const [zoom, setZoom] = useState(90);
+  
   // 用于防止初始化加载时自动保存
   const isInitialLoad = useRef(true);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -365,13 +368,16 @@ function WorkspaceContent() {
         generatingCards={generatingCards}
         onGenerationComplete={handleGenerationComplete}
         onGenerate={handleGenerate}
+        zoom={zoom}
+        onZoomChange={setZoom}
       />
 
       {/* 顶部导航栏 */}
       <CanvasHeader 
         projectName={projectName}
         onProjectNameChange={handleProjectNameChange}
-        onStorageClick={openStorageModal} 
+        onStorageClick={openStorageModal}
+        zoom={zoom}
       />
 
       {/* 左下角帮助按钮 */}

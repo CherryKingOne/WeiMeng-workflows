@@ -59,6 +59,8 @@ interface CanvasContainerProps {
   generatingCards?: Set<string>;
   onGenerationComplete?: (resultCardId: string) => void;
   onGenerate?: (generationCardId: string) => void;
+  zoom?: number;
+  onZoomChange?: (zoom: number) => void;
 }
 
 export function CanvasContainer({
@@ -76,6 +78,8 @@ export function CanvasContainer({
   generatingCards = new Set(),
   onGenerationComplete,
   onGenerate,
+  zoom: externalZoom = 90,
+  onZoomChange,
 }: CanvasContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cardsContainerRef = useRef<HTMLDivElement>(null);
@@ -86,6 +90,12 @@ export function CanvasContainer({
   const [offset, setOffset] = useState({ x: -1500, y: -1200 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
+  
+  // 缩放状态 (10% - 200%)
+  const scale = externalZoom / 100;
+  
+  // 缩放中心点（用于以鼠标位置为中心缩放）
+  const zoomCenterRef = useRef({ x: 0, y: 0 });
   
   // 卡片拖拽状态 - 使用 ref 避免频繁重新渲染
   const cardDragState = useRef<{
@@ -119,6 +129,43 @@ export function CanvasContainer({
 
   // SVG 连接线 ref
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // 处理滚轮缩放 - 以鼠标位置为中心缩放
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    // 检查是否在卡片上滚动，如果是则不缩放
+    if (e.target instanceof Element && e.target.closest("[data-card]")) {
+      return;
+    }
+
+    e.preventDefault();
+    
+    // 计算新的缩放值
+    const delta = e.deltaY > 0 ? -5 : 5; // 每次滚动调整 5%
+    const newZoom = Math.max(10, Math.min(200, externalZoom + delta));
+    const newScale = newZoom / 100;
+    const oldScale = scale;
+    
+    // 以鼠标位置为中心缩放
+    // 鼠标在屏幕上的位置
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+    
+    // 计算鼠标在画布坐标系中的位置（缩放前）
+    const mouseCanvasX = (mouseX - offset.x) / oldScale;
+    const mouseCanvasY = (mouseY - offset.y) / oldScale;
+    
+    // 计算新的偏移量，使鼠标位置在画布坐标系中保持不变
+    const newOffsetX = mouseX - mouseCanvasX * newScale;
+    const newOffsetY = mouseY - mouseCanvasY * newScale;
+    
+    // 更新偏移量
+    setOffset({ x: newOffsetX, y: newOffsetY });
+    
+    // 更新缩放值
+    if (onZoomChange) {
+      onZoomChange(newZoom);
+    }
+  }, [externalZoom, onZoomChange, offset, scale]);
 
   const getCardDimensions = useCallback((type: CardItem["type"]) => {
     switch (type) {
@@ -170,10 +217,10 @@ export function CanvasContainer({
     }
 
     return {
-      x: offset.x + position.x + (side === "output" ? dimensions.width : 0),
-      y: offset.y + position.y + dimensions.headerOffset + dimensions.height / 2,
+      x: offset.x + (position.x + (side === "output" ? dimensions.width : 0)) * scale,
+      y: offset.y + (position.y + dimensions.headerOffset + dimensions.height / 2) * scale,
     };
-  }, [getCardDimensions, offset.x, offset.y]);
+  }, [getCardDimensions, offset.x, offset.y, scale]);
 
   // 更新画布位置
   const updateCanvasPosition = useCallback((newOffset: { x: number; y: number }) => {
@@ -374,87 +421,87 @@ export function CanvasContainer({
   const getCardOutputAnchor = useCallback((card: CardItem) => {
     if (card.type === "image") {
       return {
-        x: offset.x + card.position.x + IMAGE_INPUT_CARD_WIDTH,
-        y: offset.y + card.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2,
+        x: offset.x + (card.position.x + IMAGE_INPUT_CARD_WIDTH) * scale,
+        y: offset.y + (card.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "image-generation") {
       return {
-        x: offset.x + card.position.x + IMAGE_GENERATION_CARD_WIDTH,
-        y: offset.y + card.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2,
+        x: offset.x + (card.position.x + IMAGE_GENERATION_CARD_WIDTH) * scale,
+        y: offset.y + (card.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "image-result") {
       return {
-        x: offset.x + card.position.x + IMAGE_RESULT_CARD_WIDTH,
-        y: offset.y + card.position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2,
+        x: offset.x + (card.position.x + IMAGE_RESULT_CARD_WIDTH) * scale,
+        y: offset.y + (card.position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "video-generation") {
       return {
-        x: offset.x + card.position.x + VIDEO_GENERATION_CARD_WIDTH,
-        y: offset.y + card.position.y + VIDEO_GENERATION_CARD_HEADER_OFFSET + VIDEO_GENERATION_CARD_HEIGHT / 2,
+        x: offset.x + (card.position.x + VIDEO_GENERATION_CARD_WIDTH) * scale,
+        y: offset.y + (card.position.y + VIDEO_GENERATION_CARD_HEADER_OFFSET + VIDEO_GENERATION_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "video-result") {
       return {
-        x: offset.x + card.position.x + VIDEO_RESULT_CARD_WIDTH,
-        y: offset.y + card.position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2,
+        x: offset.x + (card.position.x + VIDEO_RESULT_CARD_WIDTH) * scale,
+        y: offset.y + (card.position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     return null;
-  }, [offset.x, offset.y]);
+  }, [offset.x, offset.y, scale]);
 
   const getCardInputAnchor = useCallback((card: CardItem) => {
     if (card.type === "image") {
       return {
-        x: offset.x + card.position.x,
-        y: offset.y + card.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2,
+        x: offset.x + card.position.x * scale,
+        y: offset.y + (card.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "image-generation") {
       return {
-        x: offset.x + card.position.x,
-        y: offset.y + card.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2,
+        x: offset.x + card.position.x * scale,
+        y: offset.y + (card.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "image-result") {
       return {
-        x: offset.x + card.position.x,
-        y: offset.y + card.position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2,
+        x: offset.x + card.position.x * scale,
+        y: offset.y + (card.position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "video-generation") {
       return {
-        x: offset.x + card.position.x,
-        y: offset.y + card.position.y + VIDEO_GENERATION_CARD_HEADER_OFFSET + VIDEO_GENERATION_CARD_HEIGHT / 2,
+        x: offset.x + card.position.x * scale,
+        y: offset.y + (card.position.y + VIDEO_GENERATION_CARD_HEADER_OFFSET + VIDEO_GENERATION_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "video-result") {
       return {
-        x: offset.x + card.position.x,
-        y: offset.y + card.position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2,
+        x: offset.x + card.position.x * scale,
+        y: offset.y + (card.position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "preview") {
       return {
-        x: offset.x + card.position.x,
-        y: offset.y + card.position.y + PREVIEW_CARD_HEADER_OFFSET + PREVIEW_CARD_HEIGHT / 2,
+        x: offset.x + card.position.x * scale,
+        y: offset.y + (card.position.y + PREVIEW_CARD_HEADER_OFFSET + PREVIEW_CARD_HEIGHT / 2) * scale,
       };
     }
 
     return null;
-  }, [offset.x, offset.y]);
+  }, [offset.x, offset.y, scale]);
 
   const handleConnectionDragStart = useCallback((cardId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -584,7 +631,7 @@ export function CanvasContainer({
         style={{
           backgroundColor: "#09090b",
           backgroundImage: "radial-gradient(circle at center, #3f3f46 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
+          backgroundSize: `${32 * scale}px ${32 * scale}px`,
           backgroundPosition: `${offset.x}px ${offset.y}px`,
         }}
         onMouseDown={handleMouseDown}
@@ -592,6 +639,7 @@ export function CanvasContainer({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         onContextMenu={onContextMenu}
+        onWheel={handleWheel}
         onClick={(e) => {
           // 点击空白处取消聚焦
           if (
@@ -698,8 +746,10 @@ export function CanvasContainer({
                 }}
                 style={{
                   position: "absolute",
-                  left: offset.x + card.position.x,
-                  top: offset.y + card.position.y,
+                  left: offset.x + card.position.x * scale,
+                  top: offset.y + card.position.y * scale,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
                 }}
               >
                 <ImageInputCard
@@ -739,8 +789,10 @@ export function CanvasContainer({
                 }}
                 style={{
                   position: "absolute",
-                  left: offset.x + card.position.x,
-                  top: offset.y + card.position.y,
+                  left: offset.x + card.position.x * scale,
+                  top: offset.y + card.position.y * scale,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
                 }}
               >
                 <ImageGenerationCard
@@ -776,8 +828,10 @@ export function CanvasContainer({
                 }}
                 style={{
                   position: "absolute",
-                  left: offset.x + card.position.x,
-                  top: offset.y + card.position.y,
+                  left: offset.x + card.position.x * scale,
+                  top: offset.y + card.position.y * scale,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
                 }}
               >
                 <ImageResultCard
@@ -809,8 +863,10 @@ export function CanvasContainer({
                 }}
                 style={{
                   position: "absolute",
-                  left: offset.x + card.position.x,
-                  top: offset.y + card.position.y,
+                  left: offset.x + card.position.x * scale,
+                  top: offset.y + card.position.y * scale,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
                 }}
               >
                 <VideoResultCard
@@ -843,8 +899,10 @@ export function CanvasContainer({
                 }}
                 style={{
                   position: "absolute",
-                  left: offset.x + card.position.x,
-                  top: offset.y + card.position.y,
+                  left: offset.x + card.position.x * scale,
+                  top: offset.y + card.position.y * scale,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
                 }}
               >
                 <VideoGenerationCard
@@ -878,8 +936,10 @@ export function CanvasContainer({
                 }}
                 style={{
                   position: "absolute",
-                  left: offset.x + card.position.x,
-                  top: offset.y + card.position.y,
+                  left: offset.x + card.position.x * scale,
+                  top: offset.y + card.position.y * scale,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
                 }}
               >
                 <PreviewCard
