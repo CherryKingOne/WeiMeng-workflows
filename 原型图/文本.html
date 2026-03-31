@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本节点 - 状态原型图复刻</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 完美还原背景点阵纹理 */
+        .bg-dots {
+            background-color: #09090b; /* 极深灰底色 */
+            background-image: radial-gradient(circle, #3f3f46 1px, transparent 1px);
+            background-size: 32px 32px;
+            background-position: -16px -16px;
+        }
+    </style>
+</head>
+<body class="bg-dots min-h-screen text-white font-sans p-10 flex items-center justify-center">
+
+    <!-- 原型图展示容器：网格布局展示 4 种状态 -->
+    <div class="grid grid-cols-2 gap-x-24 gap-y-16">
+
+        <!-- 状态 1：默认 / 未激活状态 (对应图1) -->
+        <div class="flex flex-col gap-3 relative">
+            <!-- 状态说明批注 -->
+            <div class="absolute -top-12 left-0 text-gray-500 text-sm border-l-2 border-gray-500 pl-2">
+                状态 1：默认 / 关闭激活状态 <br>
+                <span class="text-xs">无高亮，无操作按钮</span>
+            </div>
+
+            <div class="text-[#888888] text-[15px] ml-1 tracking-wider">文本节点</div>
+            
+            <div class="relative w-[360px] h-[260px] bg-[#161616] border border-[#222222] rounded-xl p-6 shadow-sm">
+                <!-- 左侧连接点 -->
+                <div class="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full bg-[#555555]"></div>
+                <!-- 占位文本 -->
+                <div class="text-[#666666] text-base tracking-wide">输入文字内容...</div>
+            </div>
+        </div>
+
+        <!-- 状态 2：未激活 + 鼠标悬浮 (对应图4) -->
+        <div class="flex flex-col gap-3 relative">
+            <div class="absolute -top-12 left-0 text-gray-400 text-sm border-l-2 border-gray-400 pl-2">
+                状态 2：未激活但鼠标停放在卡片中 <br>
+                <span class="text-xs">边框微微提亮提示可交互</span>
+            </div>
+
+            <div class="text-[#888888] text-[15px] ml-1 tracking-wider">文本节点</div>
+            
+            <!-- 边框颜色加深/提亮一点点模拟 Hover -->
+            <div class="relative w-[360px] h-[260px] bg-[#161616] border border-[#3a3a3a] rounded-xl p-6 shadow-md transition-colors">
+                <div class="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full bg-[#555555]"></div>
+                <div class="text-[#666666] text-base tracking-wide">输入文字内容...</div>
+            </div>
+        </div>
+
+        <!-- 状态 3：已激活 + 鼠标离开卡片 (对应图2) -->
+        <div class="flex flex-col gap-3 relative">
+            <div class="absolute -top-12 left-0 text-blue-500/80 text-sm border-l-2 border-blue-500/80 pl-2">
+                状态 3：点击按钮后处于激活状态，且鼠标离开 <br>
+                <span class="text-xs">保持边框高亮状态，隐藏快捷操作按钮</span>
+            </div>
+
+            <div class="text-[#888888] text-[15px] ml-1 tracking-wider">文本节点</div>
+            
+            <!-- 激活状态边框高亮 (使用稍微亮一点的灰色或主题色，这里遵循原图深色调加亮边框) -->
+            <div class="relative w-[360px] h-[260px] bg-[#161616] border border-[#555555] rounded-xl p-6 shadow-lg shadow-black/50">
+                <!-- 激活状态下连接点可能变亮 -->
+                <div class="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full bg-[#888888]"></div>
+                <div class="text-[#666666] text-base tracking-wide">输入文字内容...</div>
+            </div>
+        </div>
+
+        <!-- 状态 4：已激活 + 鼠标悬浮在卡片内 (对应图0/图1/图2的综合展开态) -->
+        <div class="flex flex-col gap-3 relative">
+            <div class="absolute -top-12 left-0 text-blue-400 text-sm border-l-2 border-blue-400 pl-2">
+                状态 4：点击后处于激活状态，且鼠标放在卡片中 <br>
+                <span class="text-xs">边框高亮，同时显示右上角删除与右侧添加按钮</span>
+            </div>
+
+            <div class="text-[#888888] text-[15px] ml-1 tracking-wider">文本节点</div>
+            
+            <div class="relative w-[360px] h-[260px] bg-[#161616] border border-[#555555] rounded-xl p-6 shadow-lg shadow-black/50">
+                
+                <!-- 左侧连接点 -->
+                <div class="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full bg-[#888888]"></div>
+                
+                <div class="text-[#666666] text-base tracking-wide">输入文字内容...</div>
+
+                <!-- 右上角关闭/删除按钮 ('x') -->
+                <div class="absolute -top-3 -right-3 w-[26px] h-[26px] rounded-full bg-[#222222] border border-[#333333] flex items-center justify-center cursor-pointer hover:bg-[#333333] hover:text-white text-[#888888] transition-colors z-10">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </div>
+
+                <!-- 右侧中间添加按钮 ('+') -->
+                <div class="absolute -right-6 top-1/2 -translate-y-1/2 w-[38px] h-[38px] rounded-full bg-[#161616] border border-[#555555] flex items-center justify-center cursor-pointer hover:bg-[#2a2a2a] hover:border-[#777777] transition-all z-10">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
