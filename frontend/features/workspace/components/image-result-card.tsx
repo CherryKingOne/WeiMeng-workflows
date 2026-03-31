@@ -187,12 +187,6 @@ export function ImageResultCard({
                 </svg>
               </div>
 
-              {/* 生成中提示 */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-[#27272a]/80 backdrop-blur-sm px-3 py-1.5 rounded-full z-10">
-                <span className="text-[#a1a1aa] text-xs font-medium">
-                  生成中 {progress}%
-                </span>
-              </div>
             </>
           ) : imageData?.base64 ? (
             // 有图片数据：显示图片

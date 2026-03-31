@@ -147,12 +147,9 @@ export function VideoResultCard({
           {isGenerating ? (
             // 生成中：显示进度
             <>
-              {/* 视频风格进度填充 */}
+              {/* 灰白色进度填充 */}
               <div
-                className="absolute inset-0 bg-[radial-gradient(circle_at_top,#404552_0%,#17171c_52%,#0d0d11_100%)]"
-              />
-              <div
-                className="absolute inset-0 bg-gradient-to-r from-[#8b5cf6]/35 via-[#22d3ee]/20 to-[#34d399]/30 transition-[clip-path]"
+                className="absolute inset-0 bg-gradient-to-b from-[#c4c4c8] to-[#a8a8ac]"
                 style={{ clipPath: `inset(0 ${100 - progress}% 0 0)` }}
               />
 
