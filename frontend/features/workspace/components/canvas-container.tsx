@@ -10,6 +10,7 @@ import { VideoFrameCard } from "./video-frame-card";
 import { PreviewCard } from "./preview-card";
 import { StoryboardCard } from "./storyboard-card";
 import { TextCard } from "./text-card";
+import { CompareCard } from "./compare-card";
 
 const IMAGE_INPUT_CARD_WIDTH = 320;
 const IMAGE_INPUT_CARD_HEIGHT = 320;
@@ -38,10 +39,13 @@ const STORYBOARD_CARD_HEADER_OFFSET = 24;
 const TEXT_CARD_WIDTH = 340;
 const TEXT_CARD_HEIGHT = 260;
 const TEXT_CARD_HEADER_OFFSET = 28;
+const COMPARE_CARD_WIDTH = 380;
+const COMPARE_CARD_HEIGHT = 260;
+const COMPARE_CARD_HEADER_OFFSET = 28;
 
 export interface CardItem {
   id: string;
-  type: "image" | "text" | "video" | "video-frame" | "video-generation" | "image-generation" | "image-result" | "video-result" | "preview" | "storyboard-form";
+  type: "image" | "text" | "video" | "video-frame" | "video-generation" | "image-generation" | "image-result" | "video-result" | "preview" | "storyboard-form" | "compare";
   position: { x: number; y: number };
   data?: Record<string, unknown>;
   // 连接关系：此卡片连接到哪个卡片
@@ -248,6 +252,12 @@ export function CanvasContainer({
           width: TEXT_CARD_WIDTH,
           height: TEXT_CARD_HEIGHT,
           headerOffset: TEXT_CARD_HEADER_OFFSET,
+        };
+      case "compare":
+        return {
+          width: COMPARE_CARD_WIDTH,
+          height: COMPARE_CARD_HEIGHT,
+          headerOffset: COMPARE_CARD_HEADER_OFFSET,
         };
       default:
         return null;
@@ -512,6 +522,13 @@ export function CanvasContainer({
       };
     }
 
+    if (card.type === "compare") {
+      return {
+        x: offset.x + (card.position.x + COMPARE_CARD_WIDTH) * scale,
+        y: offset.y + (card.position.y + COMPARE_CARD_HEADER_OFFSET + COMPARE_CARD_HEIGHT / 2) * scale,
+      };
+    }
+
     return null;
   }, [offset.x, offset.y, scale]);
 
@@ -576,6 +593,13 @@ export function CanvasContainer({
       return {
         x: offset.x + card.position.x * scale,
         y: offset.y + (card.position.y + TEXT_CARD_HEADER_OFFSET + TEXT_CARD_HEIGHT / 2) * scale,
+      };
+    }
+
+    if (card.type === "compare") {
+      return {
+        x: offset.x + card.position.x * scale,
+        y: offset.y + (card.position.y + COMPARE_CARD_HEADER_OFFSET + COMPARE_CARD_HEIGHT / 2) * scale,
       };
     }
 
@@ -1149,6 +1173,44 @@ export function CanvasContainer({
                   onFocus={onCardFocus}
                   onDataChange={(data) => onCardDataChange?.(card.id, data)}
                   isFocused={focusedCardId === card.id}
+                  onDragStart={(e) => handleCardDragStart(card.id, e)}
+                  onConnectionDragStart={handleConnectionDragStart}
+                />
+              </div>
+            );
+          }
+
+          // 对比卡片
+          if (card.type === "compare") {
+            return (
+              <div
+                key={card.id}
+                data-card
+                data-card-id={card.id}
+                className="pointer-events-auto"
+                ref={(node) => {
+                  if (node) {
+                    cardElementRefs.current.set(card.id, node);
+                  } else {
+                    cardElementRefs.current.delete(card.id);
+                  }
+                }}
+                style={{
+                  position: "absolute",
+                  left: offset.x + card.position.x * scale,
+                  top: offset.y + card.position.y * scale,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                }}
+              >
+                <CompareCard
+                  id={card.id}
+                  data={card.data}
+                  onRemove={onRemoveCard}
+                  onFocus={onCardFocus}
+                  onDataChange={(data) => onCardDataChange?.(card.id, data)}
+                  isFocused={focusedCardId === card.id}
+                  hasOutgoingConnection={connections.some((connection) => connection.fromId === card.id)}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   onConnectionDragStart={handleConnectionDragStart}
                 />

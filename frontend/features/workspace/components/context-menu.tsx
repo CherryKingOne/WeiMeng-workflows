@@ -196,7 +196,7 @@ interface ContextMenuProps {
   isOpen: boolean;
   position: CanvasContextMenuPosition;
   onClose: () => void;
-  onAddCard?: (type: "image" | "image-generation" | "text" | "video" | "video-frame" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => void;
+  onAddCard?: (type: "image" | "image-generation" | "text" | "video" | "video-frame" | "preview" | "storyboard-form" | "compare", canvasPosition: { x: number; y: number }) => void;
 }
 
 export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMenuProps) {
@@ -297,6 +297,9 @@ export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMen
                   }
                   if (item.id === "preview" && onAddCard) {
                     onAddCard("preview", position.canvasPosition);
+                  }
+                  if (item.id === "compare" && onAddCard) {
+                    onAddCard("compare", position.canvasPosition);
                   }
                   onClose();
                 }

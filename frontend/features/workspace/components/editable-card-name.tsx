@@ -12,7 +12,8 @@ export type EditableCardType =
   | "image-result"
   | "video-result"
   | "preview"
-  | "storyboard-form";
+  | "storyboard-form"
+  | "compare";
 
 export const NODE_NAME_DATA_KEY = "nodeName";
 
@@ -27,6 +28,7 @@ const DEFAULT_CARD_NAMES: Record<EditableCardType, string> = {
   "video-frame": "视频输入",
   "video-generation": "生成视频",
   "video-result": "视频结果",
+  compare: "图片对比",
 };
 
 export function getDefaultCardName(type: EditableCardType): string {

@@ -13,6 +13,108 @@ import { useTheme } from "@/features/theme/theme-context";
 import { workflowService } from "@/core/api";
 import type { WorkflowNode, WorkflowEdge } from "@/core/api/types";
 
+interface FileBase64Data {
+  base64: string;
+  file_name?: string;
+  mime_type?: string;
+}
+
+interface CompareImageData {
+  base64: string;
+  fileName?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseFileBase64Data(value: unknown): FileBase64Data | null {
+  if (!isRecord(value) || typeof value.base64 !== "string") {
+    return null;
+  }
+
+  return {
+    base64: value.base64,
+    file_name: typeof value.file_name === "string" ? value.file_name : undefined,
+    mime_type: typeof value.mime_type === "string" ? value.mime_type : undefined,
+  };
+}
+
+function parseCompareImageData(value: unknown): CompareImageData | null {
+  if (!isRecord(value) || typeof value.base64 !== "string") {
+    return null;
+  }
+
+  return {
+    base64: value.base64,
+    fileName: typeof value.fileName === "string" ? value.fileName : undefined,
+  };
+}
+
+function areCompareImagesEqual(left: CompareImageData | null, right: CompareImageData | null) {
+  return left?.base64 === right?.base64 && left?.fileName === right?.fileName;
+}
+
+function buildCompareImageData(imageData: FileBase64Data): CompareImageData {
+  return {
+    base64: imageData.base64,
+    fileName: imageData.file_name,
+  };
+}
+
+function syncCompareCards(cards: CardItem[], connections: Connection[]): CardItem[] {
+  const cardsById = new Map(cards.map((card) => [card.id, card]));
+  let hasChanges = false;
+
+  const nextCards = cards.map((card) => {
+    if (card.type !== "compare") {
+      return card;
+    }
+
+    const incomingImages = connections
+      .filter((connection) => connection.toId === card.id)
+      .map((connection) => cardsById.get(connection.fromId))
+      .map((sourceCard) => parseFileBase64Data(sourceCard?.data?.imageData))
+      .filter((imageData): imageData is FileBase64Data => Boolean(imageData))
+      .slice(0, 2)
+      .map(buildCompareImageData);
+
+    const nextOriginalImage = incomingImages[0] ?? null;
+    const nextGeneratedImage = incomingImages[1] ?? null;
+    const currentOriginalImage = parseCompareImageData(card.data?.originalImage);
+    const currentGeneratedImage = parseCompareImageData(card.data?.generatedImage);
+
+    if (
+      areCompareImagesEqual(currentOriginalImage, nextOriginalImage) &&
+      areCompareImagesEqual(currentGeneratedImage, nextGeneratedImage)
+    ) {
+      return card;
+    }
+
+    const nextData = { ...(card.data ?? {}) };
+
+    if (nextOriginalImage) {
+      nextData.originalImage = nextOriginalImage;
+    } else {
+      delete nextData.originalImage;
+    }
+
+    if (nextGeneratedImage) {
+      nextData.generatedImage = nextGeneratedImage;
+    } else {
+      delete nextData.generatedImage;
+    }
+
+    hasChanges = true;
+    return {
+      ...card,
+      data: nextData,
+    };
+  });
+
+  return hasChanges ? nextCards : cards;
+}
+
 function WorkspaceContent() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -120,7 +222,7 @@ function WorkspaceContent() {
         
         const loadedCards = convertNodesToCards(workflow.nodes ?? []);
         const loadedConnections = convertEdgesToConnections(workflow.edges ?? []);
-        setCards(loadedCards);
+        setCards(syncCompareCards(loadedCards, loadedConnections));
         setConnections(loadedConnections);
         setGeneratingCards(new Set());
         console.log(`已加载 ${loadedCards.length} 个节点和 ${loadedConnections.length} 条边`);
@@ -202,7 +304,7 @@ function WorkspaceContent() {
   }, []);
 
   // 添加卡片到画布
-  const handleAddCard = useCallback((type: "image" | "image-generation" | "text" | "video" | "video-frame" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => {
+  const handleAddCard = useCallback((type: "image" | "image-generation" | "text" | "video" | "video-frame" | "preview" | "storyboard-form" | "compare", canvasPosition: { x: number; y: number }) => {
     const normalizedType = (type === "video" ? "video-generation" : type) as EditableCardType;
     const newCard: CardItem = {
       id: `card-${Date.now()}`,
@@ -233,13 +335,14 @@ function WorkspaceContent() {
 
   // 移除卡片
   const handleRemoveCard = useCallback((id: string) => {
-    setCards((prev) => prev.filter((card) => card.id !== id));
+    const nextConnections = connections.filter((conn) => conn.fromId !== id && conn.toId !== id);
+    setCards((prev) => syncCompareCards(prev.filter((card) => card.id !== id), nextConnections));
     // 同时移除相关的连接线
-    setConnections((prev) => prev.filter((conn) => conn.fromId !== id && conn.toId !== id));
+    setConnections(nextConnections);
     if (focusedCardId === id) {
       setFocusedCardId(null);
     }
-  }, [focusedCardId]);
+  }, [connections, focusedCardId]);
 
   // 处理卡片聚焦
   const handleCardFocus = useCallback((id: string) => {
@@ -261,18 +364,20 @@ function WorkspaceContent() {
 
   const handleCardDataChange = useCallback((id: string, data: Record<string, unknown>) => {
     setCards((prev) =>
-      prev.map((card) =>
+      syncCompareCards(prev.map((card) =>
         card.id === id
           ? { ...card, data: { ...(card.data ?? {}), ...data } }
           : card
-      )
+      ), connections)
     );
-  }, []);
+  }, [connections]);
 
   const handleAddConnection = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) {
       return;
     }
+
+    let nextConnections: Connection[] = [];
 
     setConnections((prev) => {
       const exists = prev.some(
@@ -280,11 +385,15 @@ function WorkspaceContent() {
       );
 
       if (exists) {
+        nextConnections = prev;
         return prev;
       }
 
-      return [...prev, { fromId, toId }];
+      nextConnections = [...prev, { fromId, toId }];
+      return nextConnections;
     });
+
+    setCards((prevCards) => syncCompareCards(prevCards, nextConnections));
   }, []);
 
   // 处理生成按钮点击（从 ImageGenerationCard 触发）
