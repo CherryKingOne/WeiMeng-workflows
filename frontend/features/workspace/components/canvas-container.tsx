@@ -6,6 +6,7 @@ import { ImageGenerationCard } from "./image-generation-card";
 import { ImageResultCard } from "./image-result-card";
 import { VideoGenerationCard } from "./video-generation-card";
 import { VideoResultCard } from "./video-result-card";
+import { VideoFrameCard } from "./video-frame-card";
 import { PreviewCard } from "./preview-card";
 import { StoryboardCard } from "./storyboard-card";
 import { TextCard } from "./text-card";
@@ -25,6 +26,9 @@ const VIDEO_GENERATION_CARD_HEADER_OFFSET = 40;
 const VIDEO_RESULT_CARD_WIDTH = 540;
 const VIDEO_RESULT_CARD_HEIGHT = 340;
 const VIDEO_RESULT_CARD_HEADER_OFFSET = 36;
+const VIDEO_FRAME_CARD_WIDTH = 560;
+const VIDEO_FRAME_CARD_HEIGHT = 760;
+const VIDEO_FRAME_CARD_HEADER_OFFSET = 28;
 const PREVIEW_CARD_WIDTH = 540;
 const PREVIEW_CARD_HEIGHT = 340;
 const PREVIEW_CARD_HEADER_OFFSET = 0;
@@ -37,7 +41,7 @@ const TEXT_CARD_HEADER_OFFSET = 28;
 
 export interface CardItem {
   id: string;
-  type: "image" | "text" | "video" | "video-generation" | "image-generation" | "image-result" | "video-result" | "preview" | "storyboard-form";
+  type: "image" | "text" | "video" | "video-frame" | "video-generation" | "image-generation" | "image-result" | "video-result" | "preview" | "storyboard-form";
   position: { x: number; y: number };
   data?: Record<string, unknown>;
   // 连接关系：此卡片连接到哪个卡片
@@ -220,6 +224,12 @@ export function CanvasContainer({
           width: VIDEO_RESULT_CARD_WIDTH,
           height: VIDEO_RESULT_CARD_HEIGHT,
           headerOffset: VIDEO_RESULT_CARD_HEADER_OFFSET,
+        };
+      case "video-frame":
+        return {
+          width: VIDEO_FRAME_CARD_WIDTH,
+          height: VIDEO_FRAME_CARD_HEIGHT,
+          headerOffset: VIDEO_FRAME_CARD_HEADER_OFFSET,
         };
       case "preview":
         return {
@@ -488,6 +498,13 @@ export function CanvasContainer({
       };
     }
 
+    if (card.type === "video-frame") {
+      return {
+        x: offset.x + (card.position.x + VIDEO_FRAME_CARD_WIDTH) * scale,
+        y: offset.y + (card.position.y + VIDEO_FRAME_CARD_HEADER_OFFSET + VIDEO_FRAME_CARD_HEIGHT / 2) * scale,
+      };
+    }
+
     if (card.type === "text") {
       return {
         x: offset.x + (card.position.x + TEXT_CARD_WIDTH) * scale,
@@ -531,6 +548,13 @@ export function CanvasContainer({
       return {
         x: offset.x + card.position.x * scale,
         y: offset.y + (card.position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2) * scale,
+      };
+    }
+
+    if (card.type === "video-frame") {
+      return {
+        x: offset.x + card.position.x * scale,
+        y: offset.y + (card.position.y + VIDEO_FRAME_CARD_HEADER_OFFSET + VIDEO_FRAME_CARD_HEIGHT / 2) * scale,
       };
     }
 
@@ -943,6 +967,42 @@ export function CanvasContainer({
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   isGenerating={card.isGenerating}
                   onGenerationComplete={() => onGenerationComplete?.(card.id)}
+                />
+              </div>
+            );
+          }
+
+          if (card.type === "video-frame") {
+            return (
+              <div
+                key={card.id}
+                data-card
+                data-card-id={card.id}
+                className="pointer-events-auto"
+                ref={(node) => {
+                  if (node) {
+                    cardElementRefs.current.set(card.id, node);
+                  } else {
+                    cardElementRefs.current.delete(card.id);
+                  }
+                }}
+                style={{
+                  position: "absolute",
+                  left: offset.x + card.position.x * scale,
+                  top: offset.y + card.position.y * scale,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                }}
+              >
+                <VideoFrameCard
+                  id={card.id}
+                  data={card.data}
+                  onRemove={onRemoveCard}
+                  onFocus={onCardFocus}
+                  onDataChange={(data) => onCardDataChange?.(card.id, data)}
+                  isFocused={focusedCardId === card.id}
+                  onDragStart={(e) => handleCardDragStart(card.id, e)}
+                  onConnectionDragStart={handleConnectionDragStart}
                 />
               </div>
             );

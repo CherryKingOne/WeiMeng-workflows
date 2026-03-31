@@ -22,8 +22,9 @@
  * ============================================================
  */
 
-const { app, BrowserWindow, ipcMain, Menu, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu, dialog, protocol } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const { spawn } = require("child_process");
 
 // 开发环境标志
@@ -348,6 +349,58 @@ function setupIPC() {
     return result;
   });
 
+  // 获取本地文件的 Blob URL（用于视频播放）
+  // 返回自定义协议 URL，避免大文件传输
+  ipcMain.handle("file:getBlobUrl", async (event, filePath) => {
+    try {
+      if (!filePath || !fs.existsSync(filePath)) {
+        return { error: "文件不存在" };
+      }
+
+      const stats = fs.statSync(filePath);
+      const fileName = path.basename(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+
+      // 根据扩展名确定 MIME 类型
+      const mimeTypes = {
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".mov": "video/quicktime",
+        ".avi": "video/x-msvideo",
+        ".mkv": "video/x-matroska",
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".ogg": "audio/ogg",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+      };
+
+      const mimeType = mimeTypes[ext] || "application/octet-stream";
+
+      // 返回 local-file:// 协议的 URL
+      // 这个协议在 app.whenReady() 中注册
+      const encodedPath = encodeURIComponent(filePath);
+      return {
+        blobUrl: `local-file://${encodedPath}`,
+        fileName,
+        fileSize: stats.size,
+        mimeType,
+      };
+    } catch (err) {
+      console.error("[Electron] 获取文件 URL 失败:", err);
+      return { error: err.message };
+    }
+  });
+
+  // 释放 Blob URL（本地文件协议不需要释放）
+  ipcMain.on("file:revokeBlobUrl", (event, blobUrl) => {
+    // local-file:// 协议不需要手动释放
+    console.log("[Electron] revokeBlobUrl 调用（本地文件协议无需释放）:", blobUrl);
+  });
+
   console.log("[Electron] IPC 处理器已注册");
 }
 
@@ -357,6 +410,21 @@ function setupIPC() {
 
 app.whenReady().then(() => {
   console.log("[Electron] 应用启动");
+
+  // 注册 local-file:// 自定义协议，用于加载本地文件
+  // 这样可以避免将大文件读取为 base64
+  protocol.registerFileProtocol("local-file", (request, callback) => {
+    try {
+      // URL 格式: local-file:///encodedPath
+      const url = request.url.slice("local-file://".length);
+      const filePath = decodeURIComponent(url);
+      console.log("[Electron] 加载本地文件:", filePath);
+      callback(filePath);
+    } catch (err) {
+      console.error("[Electron] 加载本地文件失败:", err);
+      callback({ error: -2 }); // net::FAILED
+    }
+  });
 
   // 启动 Python 后端
   startPythonBackend();

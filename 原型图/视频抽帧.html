@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频抽帧工具原型复刻</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 还原背景暗色点状网格 */
+        body {
+            background-color: #0a0a0a;
+            background-image: radial-gradient(circle, #333 1px, transparent 1px);
+            background-size: 32px 32px;
+            color: #d1d5db; /* text-gray-300 */
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        /* 自定义滚动条样式(针对图3的缩略图区域) */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body class="p-12 flex flex-col items-center gap-24">
+
+    <!-- ==========================================
+         状态一：默认上传态 (对应图1) 
+         ========================================== -->
+    <div class="w-full max-w-[560px]">
+        <!-- 头部标题 -->
+        <div class="flex items-center gap-2 mb-3 text-gray-400">
+            <div class="w-1 h-1 bg-gray-500 rounded-full"></div>
+            <span class="text-sm">视频输入</span>
+        </div>
+
+        <!-- 主面板 -->
+        <div class="bg-[#171717] border border-[#262626] rounded-2xl p-4 shadow-xl">
+            <!-- 上传区域 -->
+            <div class="h-[300px] flex flex-col items-center justify-center gap-6 border-b border-[#262626] pb-8">
+                <div class="w-16 h-16 bg-[#262626] rounded-2xl flex items-center justify-center border border-[#333]">
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                </div>
+                <button class="px-6 py-2 border border-[#404040] rounded-lg text-sm hover:bg-[#262626] transition-colors">
+                    选择或拖拽视频
+                </button>
+                <p class="text-[#737373] text-xs">支持 MP4/WEBM，拖拽或 Ctrl+V 不可用</p>
+            </div>
+
+            <!-- 下方缩略图区域(空状态) -->
+            <div class="pt-6">
+                <div class="flex items-center justify-between mb-3 text-[#a3a3a3]">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 bg-[#525252] rounded-full"></div>
+                        <span class="text-sm">抽帧缩略图</span>
+                    </div>
+                    <span class="text-sm">0 张</span>
+                </div>
+                <div class="h-[180px] border border-[#262626] rounded-lg flex items-center justify-center bg-[#1a1a1a]">
+                    <span class="text-[#737373] text-sm">点击「自动抽帧」即可生成缩略图</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==========================================
+         状态二：视频加载完成，准备抽帧 (对应图2)
+         ========================================== -->
+    <div class="w-full max-w-[560px] relative">
+        <div class="flex items-center gap-2 mb-3 text-gray-400">
+            <div class="w-1 h-1 bg-gray-500 rounded-full"></div>
+            <span class="text-sm">videoplayback</span>
+        </div>
+
+        <div class="bg-[#171717] border border-[#262626] rounded-2xl p-4 shadow-xl">
+            <!-- 视频播放器占位 -->
+            <div class="relative w-full aspect-video bg-[#000] rounded-xl overflow-hidden mb-4 border border-[#262626]">
+                <!-- 用纯色/渐变模拟视频画面 -->
+                <img src="https://images.unsplash.com/photo-1516321497487-e288fb19713f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" class="w-full h-full object-cover opacity-80" alt="video frame">
+                
+                <!-- 播放按钮 -->
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center cursor-pointer hover:bg-black/70 backdrop-blur-sm">
+                        <svg class="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+                    </div>
+                </div>
+                
+                <!-- 右上角关闭小按钮 -->
+                <button class="absolute top-3 right-3 w-6 h-6 bg-black/40 rounded-full flex items-center justify-center text-gray-400 hover:text-white backdrop-blur-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- 操作按钮栏 -->
+            <div class="flex items-center gap-3 border-b border-[#262626] pb-6 relative">
+                <button class="px-4 py-1.5 border border-[#404040] rounded-md text-sm hover:bg-[#262626] transition-colors">更换视频</button>
+                <button class="px-4 py-1.5 border border-[#404040] rounded-md text-sm hover:bg-[#262626] transition-colors">自动抽帧（2fps）</button>
+                <button class="px-4 py-1.5 border border-[#404040] rounded-md text-sm hover:bg-[#262626] transition-colors">智能抽帧</button>
+                
+                <!-- 悬浮的加号按钮 -->
+                <button class="absolute -right-8 top-1/2 -translate-y-1/2 w-10 h-10 bg-[#171717] border border-[#262626] rounded-full flex items-center justify-center text-gray-400 hover:text-white shadow-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                </button>
+            </div>
+
+            <div class="pt-6">
+                <div class="flex items-center justify-between mb-3 text-[#a3a3a3]">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 bg-[#525252] rounded-full"></div>
+                        <span class="text-sm">抽帧缩略图</span>
+                    </div>
+                    <span class="text-sm">0 张</span>
+                </div>
+                <div class="h-[180px] border border-[#262626] rounded-lg flex items-center justify-center bg-[#1a1a1a]">
+                    <span class="text-[#737373] text-sm">点击「自动抽帧」即可生成缩略图</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==========================================
+         状态三：点击抽帧后的进行中状态 (对应图3)
+         ========================================== -->
+    <div class="w-full max-w-[560px] relative">
+        <div class="flex items-center gap-2 mb-3 text-gray-400">
+            <div class="w-1 h-1 bg-gray-500 rounded-full"></div>
+            <span class="text-sm">videoplayback</span>
+        </div>
+
+        <div class="bg-[#171717] border border-[#262626] rounded-2xl p-4 shadow-xl">
+            <div class="relative w-full aspect-video bg-[#000] rounded-xl overflow-hidden mb-4 border border-[#262626]">
+                <img src="https://images.unsplash.com/photo-1516321497487-e288fb19713f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" class="w-full h-full object-cover opacity-80" alt="video frame">
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center cursor-pointer hover:bg-black/70 backdrop-blur-sm">
+                        <svg class="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 mb-4">
+                <button class="px-4 py-1.5 border border-[#404040] rounded-md text-sm hover:bg-[#262626] transition-colors">更换视频</button>
+                <button class="px-4 py-1.5 border border-[#404040] rounded-md text-sm bg-[#1a1a1a]">自动抽帧（2fps）</button>
+                <button class="px-4 py-1.5 border border-[#404040] rounded-md text-sm hover:bg-[#262626] transition-colors">智能抽帧</button>
+            </div>
+
+            <!-- 抽帧中提示文字 -->
+            <div class="text-[#3b82f6] text-sm mb-4 border-b border-[#262626] pb-4">
+                抽帧中...
+            </div>
+
+            <div class="pt-2">
+                <div class="flex items-center justify-between mb-3 text-[#a3a3a3]">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm">抽帧缩略图</span>
+                    </div>
+                    <span class="text-sm">0 张</span>
+                </div>
+                <div class="h-[180px] border border-[#262626] rounded-lg flex items-center justify-center bg-[#1a1a1a]">
+                    <span class="text-[#737373] text-sm">点击「自动抽帧」即可生成缩略图</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==========================================
+         状态四：抽帧完成，显示缩略图和侧边工具 (对应图4)
+         ========================================== -->
+    <div class="w-full max-w-[560px] relative">
+        <div class="flex items-center gap-2 mb-3 text-gray-400">
+            <div class="w-1 h-1 bg-gray-500 rounded-full"></div>
+            <span class="text-sm">videoplayback</span>
+        </div>
+
+        <div class="bg-[#171717] border border-[#262626] rounded-2xl p-4 shadow-xl border-white/20"> <!-- 外框高亮 -->
+            
+            <!-- 整体卡片右上角的大关闭按钮 (图4特有) -->
+            <button class="absolute -top-3 -right-3 w-8 h-8 bg-[#171717] border border-[#262626] rounded-full flex items-center justify-center text-gray-400 hover:text-white z-10 shadow-lg">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <div class="relative w-full aspect-video bg-[#000] rounded-xl overflow-hidden mb-4 border border-[#262626]">
+                <img src="https://images.unsplash.com/photo-1516321497487-e288fb19713f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" class="w-full h-full object-cover opacity-80" alt="video frame">
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center cursor-pointer hover:bg-black/70 backdrop-blur-sm">
+                        <svg class="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 border-b border-[#262626] pb-4 relative">
+                <button class="px-4 py-1.5 border border-[#404040] rounded-md text-sm hover:bg-[#262626] transition-colors">更换视频</button>
+                <button class="px-4 py-1.5 border border-[#404040] rounded-md text-sm hover:bg-[#262626] transition-colors">自动抽帧（2fps）</button>
+                <button class="px-4 py-1.5 border border-[#404040] rounded-md text-sm hover:bg-[#262626] transition-colors">智能抽帧</button>
+                
+                <button class="absolute -right-8 top-1/2 -translate-y-1/2 w-10 h-10 bg-[#171717] border border-[#262626] rounded-full flex items-center justify-center text-gray-400 hover:text-white shadow-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                </button>
+            </div>
+
+            <div class="pt-4">
+                <div class="flex items-center justify-between mb-3 text-[#a3a3a3]">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm">抽帧缩略图</span>
+                    </div>
+                    <span class="text-sm">30 张</span>
+                </div>
+                
+                <!-- 抽帧列表容器 -->
+                <div class="h-[220px] overflow-y-auto custom-scrollbar pr-2 space-y-3">
+                    
+                    <!-- 缩略图 1 (选中状态，纯黑占位) -->
+                    <div class="relative w-full h-[120px] bg-black border-2 border-white rounded-lg overflow-hidden">
+                        <span class="absolute top-2 left-2 text-white text-xs bg-black/60 px-1.5 py-0.5 rounded">0.00s</span>
+                        <!-- 选中圈 -->
+                        <div class="absolute top-2 right-2 w-5 h-5 border-2 border-gray-400 rounded-full"></div>
+                    </div>
+
+                    <!-- 缩略图 2 (未选中，网页截图占位) -->
+                    <div class="relative w-full h-[120px] bg-gray-200 border border-[#404040] rounded-lg overflow-hidden">
+                        <!-- 模拟网页截图内容 -->
+                        <div class="w-full h-full bg-white flex flex-col">
+                            <div class="h-6 bg-gray-100 border-b flex items-center px-2"><div class="w-3/4 h-3 bg-gray-300 rounded"></div></div>
+                            <div class="flex-1 p-2"><div class="w-1/2 h-4 bg-gray-200 mb-2"></div><div class="w-full h-12 bg-gray-100"></div></div>
+                        </div>
+                        <span class="absolute top-2 left-2 text-white text-xs bg-black/60 px-1.5 py-0.5 rounded">57.94s</span>
+                        <!-- 选中圈 (已勾选态模拟) -->
+                        <div class="absolute bottom-2 right-2 w-5 h-5 bg-black/40 rounded-full flex items-center justify-center">
+                             <div class="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+
+        <!-- 侧边悬浮工具栏 (图4特有) -->
+        <div class="absolute -right-20 top-[30%] flex flex-col gap-8">
+            <button class="w-12 h-12 bg-[#171717] border border-[#262626] rounded-full flex items-center justify-center text-gray-400 hover:text-white shadow-xl">
+                <!-- 眼睛图标 -->
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            </button>
+            <button class="w-12 h-12 bg-[#171717] border border-[#262626] rounded-full flex items-center justify-center text-gray-400 hover:text-white shadow-xl">
+                <!-- 图片图标 -->
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </button>
+        </div>
+    </div>
+
+</body>
+</html>

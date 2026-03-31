@@ -134,20 +134,6 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    id: "table",
-    label: "表格编辑",
-    icon: (
-      <svg
-        className="w-5 h-5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-      </svg>
-    ),
-  },
-  {
     id: "video",
     label: "视频",
     icon: (
@@ -210,7 +196,7 @@ interface ContextMenuProps {
   isOpen: boolean;
   position: CanvasContextMenuPosition;
   onClose: () => void;
-  onAddCard?: (type: "image" | "image-generation" | "text" | "video" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => void;
+  onAddCard?: (type: "image" | "image-generation" | "text" | "video" | "video-frame" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => void;
 }
 
 export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMenuProps) {
@@ -301,6 +287,9 @@ export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMen
                   // 处理文本菜单项点击
                   if (item.id === "text" && onAddCard) {
                     onAddCard("text", position.canvasPosition);
+                  }
+                  if (item.id === "video-frame" && onAddCard) {
+                    onAddCard("video-frame", position.canvasPosition);
                   }
                   // 处理视频菜单项点击
                   if (item.id === "video" && onAddCard) {

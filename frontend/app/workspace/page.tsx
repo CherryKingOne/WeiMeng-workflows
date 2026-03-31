@@ -202,7 +202,7 @@ function WorkspaceContent() {
   }, []);
 
   // 添加卡片到画布
-  const handleAddCard = useCallback((type: "image" | "image-generation" | "text" | "video" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => {
+  const handleAddCard = useCallback((type: "image" | "image-generation" | "text" | "video" | "video-frame" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => {
     const normalizedType = (type === "video" ? "video-generation" : type) as EditableCardType;
     const newCard: CardItem = {
       id: `card-${Date.now()}`,

@@ -86,6 +86,24 @@ contextBridge.exposeInMainWorld("workflowsDesktop", {
   selectFile(title, filters) {
     return ipcRenderer.invoke("dialog:selectFile", title, filters);
   },
+
+  /**
+   * 获取本地文件的 Blob URL
+   * 用于在渲染进程中播放本地视频文件
+   * @param {string} filePath - 本地文件路径
+   * @returns {Promise<{blobUrl: string, fileName: string, fileSize: number, mimeType: string}>}
+   */
+  getLocalFileUrl(filePath) {
+    return ipcRenderer.invoke("file:getBlobUrl", filePath);
+  },
+
+  /**
+   * 释放 Blob URL
+   * @param {string} blobUrl - 要释放的 Blob URL
+   */
+  revokeBlobUrl(blobUrl) {
+    ipcRenderer.send("file:revokeBlobUrl", blobUrl);
+  },
 });
 
 console.log("[Preload] workflowsDesktop API 已注入");

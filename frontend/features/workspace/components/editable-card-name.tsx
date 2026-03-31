@@ -6,6 +6,7 @@ export type EditableCardType =
   | "image"
   | "text"
   | "video"
+  | "video-frame"
   | "video-generation"
   | "image-generation"
   | "image-result"
@@ -23,6 +24,7 @@ const DEFAULT_CARD_NAMES: Record<EditableCardType, string> = {
   "storyboard-form": "分镜节点",
   text: "文本节点",
   video: "生成视频",
+  "video-frame": "视频输入",
   "video-generation": "生成视频",
   "video-result": "视频结果",
 };

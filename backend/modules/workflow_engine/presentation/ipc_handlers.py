@@ -17,6 +17,9 @@ from modules.workflow_engine.application.use_cases import (
 )
 
 NODE_NAME_DATA_KEY = "nodeName"
+VIDEO_DATA_KEY = "videoData"
+FRAME_THUMBNAILS_KEY = "frameThumbnails"
+SELECTED_FRAME_IDS_KEY = "selectedFrameIds"
 
 
 def _normalize_node_data(node_dict: dict[str, object]) -> dict[str, object]:
@@ -30,6 +33,27 @@ def _normalize_node_data(node_dict: dict[str, object]) -> dict[str, object]:
 
     if NODE_NAME_DATA_KEY in normalized and not isinstance(normalized[NODE_NAME_DATA_KEY], str):
         normalized[NODE_NAME_DATA_KEY] = str(normalized[NODE_NAME_DATA_KEY])
+
+    if VIDEO_DATA_KEY in normalized and not isinstance(normalized[VIDEO_DATA_KEY], dict):
+        normalized.pop(VIDEO_DATA_KEY, None)
+
+    if FRAME_THUMBNAILS_KEY in normalized:
+        if isinstance(normalized[FRAME_THUMBNAILS_KEY], list):
+            normalized[FRAME_THUMBNAILS_KEY] = [
+                item for item in normalized[FRAME_THUMBNAILS_KEY]
+                if isinstance(item, dict)
+            ]
+        else:
+            normalized[FRAME_THUMBNAILS_KEY] = []
+
+    if SELECTED_FRAME_IDS_KEY in normalized:
+        if isinstance(normalized[SELECTED_FRAME_IDS_KEY], list):
+            normalized[SELECTED_FRAME_IDS_KEY] = [
+                item for item in normalized[SELECTED_FRAME_IDS_KEY]
+                if isinstance(item, str)
+            ]
+        else:
+            normalized[SELECTED_FRAME_IDS_KEY] = []
 
     return normalized
 
