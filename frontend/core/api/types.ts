@@ -56,7 +56,7 @@ export interface WorkflowNode {
   position_x: number;
   /** Y 坐标 */
   position_y: number;
-  /** 节点扩展数据 */
+  /** 节点扩展数据，例如可编辑节点名称 nodeName */
   data?: Record<string, unknown>;
 }
 

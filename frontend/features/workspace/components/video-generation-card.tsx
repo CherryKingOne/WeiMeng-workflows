@@ -31,6 +31,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTheme } from "@/features/theme/theme-context";
+import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
@@ -111,6 +112,7 @@ export function VideoGenerationCard({
   const [selectedRatio, setSelectedRatio] = useState("16:9");
   const [selectedDuration, setSelectedDuration] = useState("5s");
   const [selectedResolution, setSelectedResolution] = useState("1080P");
+  const cardName = getCardNameValue(data, "生成视频");
 
   useEffect(() => {
     setPrompt(typeof data?.prompt === "string" ? data.prompt : "");
@@ -164,7 +166,13 @@ export function VideoGenerationCard({
       {/* 头部标题 */}
       <div className="flex items-center gap-2 px-1 mb-3">
         <GradientLogo />
-        <span className="text-[#a1a1aa] text-[15px] font-medium tracking-wide">生成视频</span>
+        <EditableCardName
+          value={cardName}
+          defaultValue="生成视频"
+          onChange={(value) => onDataChange?.({ [NODE_NAME_DATA_KEY]: value })}
+          onFocus={() => onFocus?.(id)}
+          className="bg-transparent text-[15px] font-medium tracking-wide text-[#a1a1aa] outline-none"
+        />
       </div>
 
       {/* 卡片主体 */}

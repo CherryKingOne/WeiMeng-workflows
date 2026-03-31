@@ -30,6 +30,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
@@ -77,6 +78,7 @@ interface ImageResultCardProps {
   isGenerating?: boolean;
   onGenerationComplete?: () => void;
   data?: Record<string, unknown>;
+  onDataChange?: (data: Record<string, unknown>) => void;
   onConnectionDragStart?: (id: string, e: React.MouseEvent) => void;
 }
 
@@ -89,11 +91,13 @@ export function ImageResultCard({
   isGenerating = false,
   onGenerationComplete,
   data,
+  onDataChange,
   onConnectionDragStart,
 }: ImageResultCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const cardName = getCardNameValue(data, "图片结果");
 
   // 解析图片数据
   const imageData = data?.imageData as { base64?: string; mime_type?: string; file_name?: string } | undefined;
@@ -152,8 +156,14 @@ export function ImageResultCard({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* 标题 */}
-      <div className="absolute -top-9 left-0 text-[15px] font-medium tracking-[0.16em] text-[#888888]">
-        预览节点
+      <div className="absolute -top-9 left-0">
+        <EditableCardName
+          value={cardName}
+          defaultValue="图片结果"
+          onChange={(value) => onDataChange?.({ [NODE_NAME_DATA_KEY]: value })}
+          onFocus={() => onFocus?.(id)}
+          className="bg-transparent text-[15px] font-medium tracking-[0.16em] text-[#888888] outline-none"
+        />
       </div>
 
       {/* 卡片主体 */}

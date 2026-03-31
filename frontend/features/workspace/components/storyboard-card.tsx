@@ -31,6 +31,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTheme } from "@/features/theme/theme-context";
+import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 // 分镜项目数据结构
 interface StoryboardItem {
@@ -202,6 +203,7 @@ export function StoryboardCard({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const cardRef = useRef<HTMLDivElement>(null);
+  const cardName = getCardNameValue(data, "分镜节点");
 
   // 视图模式状态
   const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -639,7 +641,13 @@ export function StoryboardCard({
   return (
     <div className="cursor-grab" onMouseDown={handleMouseDown}>
       {/* 标签 */}
-      <div className="text-[12px] text-neutral-400 mb-2">分镜节点</div>
+      <EditableCardName
+        value={cardName}
+        defaultValue="分镜节点"
+        onChange={(value) => onDataChange?.({ [NODE_NAME_DATA_KEY]: value })}
+        onFocus={() => onFocus?.(id)}
+        className="mb-2 bg-transparent text-[12px] text-neutral-400 outline-none"
+      />
 
       {/* 主卡片 */}
       <div

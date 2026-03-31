@@ -32,6 +32,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTheme } from "@/features/theme/theme-context";
 import { selectFile, readFileAsBase64, type FileBase64Result } from "@/core/api";
+import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 // 弧形菜单工具项
 const arcMenuTools = [
@@ -123,6 +124,7 @@ export function ImageInputCard({
   const [status, setStatus] = useState<"default" | "interactive" | "expanded">("default");
   const [imageData, setImageData] = useState<FileBase64Result | null>(() => parseImageData(data?.imageData));
   const [isLoading, setIsLoading] = useState(false);
+  const cardName = getCardNameValue(data, "上传文件");
 
   useEffect(() => {
     setImageData(parseImageData(data?.imageData));
@@ -209,7 +211,13 @@ export function ImageInputCard({
       onMouseLeave={handleMouseLeave}
     >
       {/* 标签 */}
-      <div className="text-[12px] text-neutral-400 mb-2">图片输入</div>
+      <EditableCardName
+        value={cardName}
+        defaultValue="上传文件"
+        onChange={(value) => onDataChange?.({ [NODE_NAME_DATA_KEY]: value })}
+        onFocus={() => onFocus?.(id)}
+        className="mb-2 bg-transparent text-[12px] text-neutral-400 outline-none"
+      />
 
       {/* 主卡片 - 使用 overflow-visible 允许弧形菜单超出边界 */}
       <div

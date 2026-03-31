@@ -16,6 +16,23 @@ from modules.workflow_engine.application.use_cases import (
     UpdateWorkflowUseCase,
 )
 
+NODE_NAME_DATA_KEY = "nodeName"
+
+
+def _normalize_node_data(node_dict: dict[str, object]) -> dict[str, object]:
+    """Normalize node metadata and preserve editable card names."""
+    raw_data = node_dict.get("data", {})
+    normalized = dict(raw_data) if isinstance(raw_data, dict) else {}
+
+    top_level_name = node_dict.get("name")
+    if NODE_NAME_DATA_KEY not in normalized and isinstance(top_level_name, str):
+        normalized[NODE_NAME_DATA_KEY] = top_level_name
+
+    if NODE_NAME_DATA_KEY in normalized and not isinstance(normalized[NODE_NAME_DATA_KEY], str):
+        normalized[NODE_NAME_DATA_KEY] = str(normalized[NODE_NAME_DATA_KEY])
+
+    return normalized
+
 
 def register_handlers(router: IPCRouter, container: ApplicationContainer) -> None:
     """Register workflow engine IPC handlers."""
@@ -77,7 +94,7 @@ def register_handlers(router: IPCRouter, container: ApplicationContainer) -> Non
                         node_type=str(node_dict.get("node_type", "")),
                         position_x=float(node_dict.get("position_x", 0)),
                         position_y=float(node_dict.get("position_y", 0)),
-                        data=node_dict.get("data", {}) if isinstance(node_dict.get("data", {}), dict) else {},
+                        data=_normalize_node_data(node_dict),
                     ))
         
         # 解析边数据

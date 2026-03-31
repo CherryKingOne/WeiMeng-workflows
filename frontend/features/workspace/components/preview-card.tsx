@@ -30,6 +30,7 @@
  */
 
 import { useCallback, useRef } from "react";
+import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 function LucideIcon({ name, className }: { name: string; className?: string }) {
   const iconPaths: Record<string, string> = {
@@ -58,6 +59,8 @@ interface PreviewCardProps {
   onFocus?: (id: string) => void;
   isFocused?: boolean;
   onDragStart?: (e: React.MouseEvent) => void;
+  data?: Record<string, unknown>;
+  onDataChange?: (data: Record<string, unknown>) => void;
 }
 
 export function PreviewCard({
@@ -66,8 +69,11 @@ export function PreviewCard({
   onFocus,
   isFocused = false,
   onDragStart,
+  data,
+  onDataChange,
 }: PreviewCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const cardName = getCardNameValue(data, "预览节点");
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     onDragStart?.(e);
@@ -93,8 +99,14 @@ export function PreviewCard({
       className="group relative cursor-grab select-none"
       onMouseDown={handleMouseDown}
     >
-      <div className="absolute -top-9 left-0 text-[15px] font-medium tracking-[0.16em] text-[#888888]">
-        预览节点
+      <div className="absolute -top-9 left-0">
+        <EditableCardName
+          value={cardName}
+          defaultValue="预览节点"
+          onChange={(value) => onDataChange?.({ [NODE_NAME_DATA_KEY]: value })}
+          onFocus={() => onFocus?.(id)}
+          className="bg-transparent text-[15px] font-medium tracking-[0.16em] text-[#888888] outline-none"
+        />
       </div>
 
       <div

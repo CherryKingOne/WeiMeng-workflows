@@ -30,6 +30,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
@@ -78,6 +79,7 @@ interface VideoResultCardProps {
   isGenerating?: boolean;
   onGenerationComplete?: () => void;
   data?: Record<string, unknown>;
+  onDataChange?: (data: Record<string, unknown>) => void;
   onConnectionDragStart?: (id: string, e: React.MouseEvent) => void;
 }
 
@@ -90,11 +92,13 @@ export function VideoResultCard({
   isGenerating = false,
   onGenerationComplete,
   data,
+  onDataChange,
   onConnectionDragStart,
 }: VideoResultCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const cardName = getCardNameValue(data, "视频结果");
 
   // 解析视频数据
   const videoData = data?.videoData as { base64?: string; mime_type?: string; file_name?: string } | undefined;
@@ -151,8 +155,14 @@ export function VideoResultCard({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* 标题 */}
-      <div className="absolute -top-9 left-0 text-[15px] font-medium tracking-[0.16em] text-[#888888]">
-        预览节点
+      <div className="absolute -top-9 left-0">
+        <EditableCardName
+          value={cardName}
+          defaultValue="视频结果"
+          onChange={(value) => onDataChange?.({ [NODE_NAME_DATA_KEY]: value })}
+          onFocus={() => onFocus?.(id)}
+          className="bg-transparent text-[15px] font-medium tracking-[0.16em] text-[#888888] outline-none"
+        />
       </div>
 
       {/* 卡片主体 */}

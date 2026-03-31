@@ -36,6 +36,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
@@ -83,6 +84,7 @@ export function TextCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const cardName = getCardNameValue(data, "文本节点");
 
   // 文本内容状态
   const [textContent, setTextContent] = useState(() => {
@@ -156,9 +158,13 @@ export function TextCard({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* 顶部标题 */}
-      <div className="text-[#71717a] text-[15px] font-medium tracking-wide pl-1 mb-2">
-        文本节点
-      </div>
+      <EditableCardName
+        value={cardName}
+        defaultValue="文本节点"
+        onChange={(value) => onDataChange?.({ [NODE_NAME_DATA_KEY]: value })}
+        onFocus={() => onFocus?.(id)}
+        className="mb-2 bg-transparent pl-1 text-[15px] font-medium tracking-wide text-[#71717a] outline-none"
+      />
 
       {/* 卡片主体 */}
       <div

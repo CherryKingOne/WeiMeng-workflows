@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { CanvasHeader } from "@/features/workspace/components/canvas-header";
 import { ContextMenu } from "@/features/workspace/components/context-menu";
 import { CanvasContainer, CardItem, Connection, CanvasContextMenuPosition } from "@/features/workspace/components/canvas-container";
+import { getDefaultCardName, NODE_NAME_DATA_KEY, type EditableCardType } from "@/features/workspace/components/editable-card-name";
 import { Minimap } from "@/features/workspace/components/minimap";
 import { HelpButton } from "@/features/workspace/components/help-button";
 import { StorageModal } from "@/features/workspace/components/storage-modal";
@@ -38,6 +39,10 @@ function WorkspaceContent() {
   // 用于防止初始化加载时自动保存
   const isInitialLoad = useRef(true);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const buildCardData = useCallback((type: EditableCardType) => ({
+    [NODE_NAME_DATA_KEY]: getDefaultCardName(type),
+  }), []);
 
   // 将后端节点数据转换为前端卡片数据
   const convertNodesToCards = (nodes: WorkflowNode[]): CardItem[] => {
@@ -198,29 +203,33 @@ function WorkspaceContent() {
 
   // 添加卡片到画布
   const handleAddCard = useCallback((type: "image" | "image-generation" | "text" | "video" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => {
+    const normalizedType = (type === "video" ? "video-generation" : type) as EditableCardType;
     const newCard: CardItem = {
       id: `card-${Date.now()}`,
-      type: type === "video" ? "video-generation" : type,
+      type: normalizedType,
       position: canvasPosition,
+      data: buildCardData(normalizedType),
     };
     setCards((prev) => [...prev, newCard]);
     setFocusedCardId(newCard.id);
-  }, []);
+  }, [buildCardData]);
 
   // 添加连接的子卡片
   const handleAddConnectedCard = useCallback((parentId: string, type: string, position: { x: number; y: number }) => {
+    const normalizedType = type as EditableCardType;
     const newCardId = `card-${Date.now()}`;
     const newCard: CardItem = {
       id: newCardId,
-      type: type as CardItem["type"],
+      type: normalizedType,
       position,
+      data: buildCardData(normalizedType),
     };
     setCards((prev) => [...prev, newCard]);
     setFocusedCardId(newCardId);
     
     // 添加连接关系
     setConnections((prev) => [...prev, { fromId: parentId, toId: newCardId }]);
-  }, []);
+  }, [buildCardData]);
 
   // 移除卡片
   const handleRemoveCard = useCallback((id: string) => {
@@ -303,6 +312,7 @@ function WorkspaceContent() {
               y: generationCard.position.y + 92,
             },
         isGenerating: true,
+        data: buildCardData(isVideoGeneration ? "video-result" : "image-result"),
       };
 
       return [...prevCards, newCard];
@@ -315,7 +325,7 @@ function WorkspaceContent() {
     
     // 标记为正在生成
     setGeneratingCards((prev) => new Set(prev).add(generationCardId));
-  }, []);
+  }, [buildCardData]);
 
   // 处理生成完成
   const handleGenerationComplete = useCallback((resultCardId: string) => {
@@ -345,10 +355,11 @@ function WorkspaceContent() {
       id: `card-${Date.now()}`,
       type: "video-generation",
       position: { x: 1500, y: 1200 }, // 画布中心位置
+      data: buildCardData("video-generation"),
     };
     setCards((prev) => [...prev, newCard]);
     setFocusedCardId(newCard.id);
-  }, []);
+  }, [buildCardData]);
 
   return (
     <main className={`h-screen w-screen overflow-hidden font-sans select-none canvas-page ${

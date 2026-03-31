@@ -898,8 +898,10 @@ export function CanvasContainer({
               >
                 <ImageResultCard
                   id={card.id}
+                  data={card.data}
                   onRemove={onRemoveCard}
                   onFocus={onCardFocus}
+                  onDataChange={(data) => onCardDataChange?.(card.id, data)}
                   isFocused={focusedCardId === card.id}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   isGenerating={card.isGenerating}
@@ -933,8 +935,10 @@ export function CanvasContainer({
               >
                 <VideoResultCard
                   id={card.id}
+                  data={card.data}
                   onRemove={onRemoveCard}
                   onFocus={onCardFocus}
+                  onDataChange={(data) => onCardDataChange?.(card.id, data)}
                   isFocused={focusedCardId === card.id}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   isGenerating={card.isGenerating}
@@ -1006,8 +1010,10 @@ export function CanvasContainer({
               >
                 <PreviewCard
                   id={card.id}
+                  data={card.data}
                   onRemove={onRemoveCard}
                   onFocus={onCardFocus}
+                  onDataChange={(data) => onCardDataChange?.(card.id, data)}
                   isFocused={focusedCardId === card.id}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                 />

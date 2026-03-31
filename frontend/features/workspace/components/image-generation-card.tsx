@@ -30,6 +30,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
@@ -89,6 +90,7 @@ export function ImageGenerationCard({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isCollapsedEditorOpen, setIsCollapsedEditorOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const cardName = getCardNameValue(data, "生成图片");
 
   useEffect(() => {
     setPrompt(typeof data?.prompt === "string" ? data.prompt : "");
@@ -193,7 +195,13 @@ export function ImageGenerationCard({
     >
       <div className="flex items-center gap-2 px-1 mb-3">
         <LucideIcon name="sparkles" className="w-4 h-4 text-[#a1a1aa]" />
-        <span className="text-[#a1a1aa] text-sm font-medium tracking-wide">生成图片</span>
+        <EditableCardName
+          value={cardName}
+          defaultValue="生成图片"
+          onChange={(value) => onDataChange?.({ [NODE_NAME_DATA_KEY]: value })}
+          onFocus={() => onFocus?.(id)}
+          className="bg-transparent text-sm font-medium tracking-wide text-[#a1a1aa] outline-none"
+        />
       </div>
 
       {!isCollapsed ? (
