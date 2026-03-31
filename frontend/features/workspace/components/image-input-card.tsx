@@ -46,6 +46,7 @@ interface ImageInputCardProps {
   hasOutgoingConnection?: boolean;
   onDragStart?: (e: React.MouseEvent) => void;
   onAddConnectedCard?: (type: string, position: { x: number; y: number }) => void;
+  onConnectionDragStart?: (cardId: string, e: React.MouseEvent) => void;
   data?: Record<string, unknown>;
   onDataChange?: (data: Record<string, unknown>) => void;
 }
@@ -81,6 +82,7 @@ export function ImageInputCard({
   hasOutgoingConnection = false,
   onDragStart,
   onAddConnectedCard,
+  onConnectionDragStart,
   data,
   onDataChange,
 }: ImageInputCardProps) {
@@ -255,14 +257,21 @@ export function ImageInputCard({
         {/* 弧形菜单 - 交互态显示+按钮，展开态显示工具组 */}
         {(status === "interactive" || status === "expanded") && (
           <div className="absolute right-0 top-1/2 -translate-y-1/2">
-            {/* 主按钮 - 加号 */}
+            {/* 主按钮 - 加号（支持点击展开和拖拽连接） */}
             <button
-              className={`absolute left-0 top-1/2 w-10 h-10 -translate-x-1/2 -translate-y-1/2 ${
+              className={`absolute left-0 top-1/2 w-10 h-10 -translate-x-1/2 -translate-y-1/2 cursor-grab ${
                 isDark ? "bg-[#18191c] border-neutral-500" : "bg-white border-gray-400"
               } border rounded-full flex items-center justify-center ${
                 isDark ? "text-white" : "text-gray-900"
               } shadow-xl z-20`}
               onClick={handleExpandTools}
+              onMouseDown={(e) => {
+                // 如果按住拖拽，则开始连接线拖拽
+                if (onConnectionDragStart) {
+                  e.stopPropagation();
+                  onConnectionDragStart(id, e);
+                }
+              }}
             >
               <LucideIcon name="plus" className="w-6 h-6" />
             </button>

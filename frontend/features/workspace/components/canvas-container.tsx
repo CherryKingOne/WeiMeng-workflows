@@ -689,7 +689,7 @@ export function CanvasContainer({
                   }}
                   d={path}
                   fill="none"
-                  stroke="#52525b"
+                  stroke="#a1a1aa"
                   strokeWidth="2"
                   strokeLinecap="round"
                 />
@@ -780,6 +780,7 @@ export function CanvasContainer({
                       y: card.position.y + position.y,
                     });
                   }}
+                  onConnectionDragStart={handleConnectionDragStart}
                 />
               </div>
             );
