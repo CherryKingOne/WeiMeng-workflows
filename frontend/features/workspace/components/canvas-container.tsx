@@ -82,7 +82,6 @@ export function CanvasContainer({
   onZoomChange,
 }: CanvasContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const cardsContainerRef = useRef<HTMLDivElement>(null);
   const cardElementRefs = useRef(new Map<string, HTMLDivElement>());
   const connectionPathRefs = useRef(new Map<string, SVGPathElement>());
 
@@ -93,10 +92,7 @@ export function CanvasContainer({
   
   // 缩放状态 (10% - 200%)
   const scale = externalZoom / 100;
-  
-  // 缩放中心点（用于以鼠标位置为中心缩放）
-  const zoomCenterRef = useRef({ x: 0, y: 0 });
-  
+
   // 卡片拖拽状态 - 使用 ref 避免频繁重新渲染
   const cardDragState = useRef<{
     isDragging: boolean;
@@ -350,8 +346,8 @@ export function CanvasContainer({
       const state = cardDragState.current;
       if (!state.isDragging || !state.cardId) return;
 
-      const deltaX = e.clientX - state.startX;
-      const deltaY = e.clientY - state.startY;
+      const deltaX = (e.clientX - state.startX) / scale;
+      const deltaY = (e.clientY - state.startY) / scale;
       const newX = state.cardStartX + deltaX;
       const newY = state.cardStartY + deltaY;
 
@@ -371,8 +367,8 @@ export function CanvasContainer({
 
         const cardElement = cardElementRefs.current.get(currentState.cardId);
         if (cardElement) {
-          cardElement.style.left = `${offset.x + currentState.pendingPosition.x}px`;
-          cardElement.style.top = `${offset.y + currentState.pendingPosition.y}px`;
+          cardElement.style.left = `${offset.x + currentState.pendingPosition.x * scale}px`;
+          cardElement.style.top = `${offset.y + currentState.pendingPosition.y * scale}px`;
         }
 
         currentState.currentPosition = currentState.pendingPosition;
@@ -416,7 +412,7 @@ export function CanvasContainer({
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [offset, onCardMove, updateConnectionsForCard]);
+  }, [offset, onCardMove, scale, updateConnectionsForCard]);
 
   const getCardOutputAnchor = useCallback((card: CardItem) => {
     if (card.type === "image") {
