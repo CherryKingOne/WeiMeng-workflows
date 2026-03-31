@@ -1,5 +1,34 @@
 "use client";
 
+/**
+ * 图片输入卡片组件
+ *
+ * ============================================================================
+ * 【卡片连接点规范】
+ * ============================================================================
+ * 所有工作流卡片组件默认应包含以下连接点：
+ *
+ * 【左侧连接点】（输入端口）
+ * - 样式：<div className="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10" />
+ * - 用于接收来自其他卡片的连接线
+ * - 默认情况下所有卡片都应有左侧连接点
+ *
+ * 【右侧连接点】（输出端口 - 带加号按钮）
+ * - 样式：<button className="absolute -right-[18px] top-1/2 -translate-y-1/2 w-[36px] h-[36px] bg-[#111] border border-[#4a4a4a] rounded-full flex items-center justify-center text-white shadow-[0_0_10px_rgba(0,0,0,0.5)] z-20">
+ *           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+ *             <line x1="12" y1="5" x2="12" y2="19"></line>
+ *             <line x1="5" y1="12" x2="19" y2="12"></line>
+ *           </svg>
+ *         </button>
+ * - 用于创建到其他卡片的连接线
+ * - 默认情况下所有卡片都应有右侧连接点
+ *
+ * 【特殊说明】
+ * - 如果用户明确要求某个卡片不需要左侧或右侧连接点，则根据用户需求移除
+ * - 移除连接点需要用户明确说明，否则默认保留
+ * ============================================================================
+ */
+
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTheme } from "@/features/theme/theme-context";
 import { selectFile, readFileAsBase64, type FileBase64Result } from "@/core/api";
@@ -190,6 +219,9 @@ export function ImageInputCard({
         onMouseEnter={handleMouseEnter}
         onClick={handleCardClick}
       >
+        {/* 左侧连接点（输入端口） */}
+        <div className="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10" />
+
         {hasOutgoingConnection && (
           <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#52525b] border-2 border-[#18191c] z-10" />
         )}
