@@ -8,6 +8,7 @@ import { VideoGenerationCard } from "./video-generation-card";
 import { VideoResultCard } from "./video-result-card";
 import { PreviewCard } from "./preview-card";
 import { StoryboardCard } from "./storyboard-card";
+import { TextCard } from "./text-card";
 
 const IMAGE_INPUT_CARD_WIDTH = 320;
 const IMAGE_INPUT_CARD_HEIGHT = 320;
@@ -30,6 +31,9 @@ const PREVIEW_CARD_HEADER_OFFSET = 0;
 const STORYBOARD_CARD_WIDTH = 820;
 const STORYBOARD_CARD_HEIGHT = 420;
 const STORYBOARD_CARD_HEADER_OFFSET = 24;
+const TEXT_CARD_WIDTH = 340;
+const TEXT_CARD_HEIGHT = 260;
+const TEXT_CARD_HEADER_OFFSET = 28;
 
 export interface CardItem {
   id: string;
@@ -40,6 +44,8 @@ export interface CardItem {
   connectedTo?: string;
   // 是否正在生成中
   isGenerating?: boolean;
+  // 文本内容（文本卡片专用）
+  textContent?: string;
 }
 
 // 连接线配置
@@ -210,6 +216,12 @@ export function CanvasContainer({
           width: STORYBOARD_CARD_WIDTH,
           height: STORYBOARD_CARD_HEIGHT,
           headerOffset: STORYBOARD_CARD_HEADER_OFFSET,
+        };
+      case "text":
+        return {
+          width: TEXT_CARD_WIDTH,
+          height: TEXT_CARD_HEIGHT,
+          headerOffset: TEXT_CARD_HEADER_OFFSET,
         };
       default:
         return null;
@@ -460,6 +472,13 @@ export function CanvasContainer({
       };
     }
 
+    if (card.type === "text") {
+      return {
+        x: offset.x + (card.position.x + TEXT_CARD_WIDTH) * scale,
+        y: offset.y + (card.position.y + TEXT_CARD_HEADER_OFFSET + TEXT_CARD_HEIGHT / 2) * scale,
+      };
+    }
+
     return null;
   }, [offset.x, offset.y, scale]);
 
@@ -510,6 +529,13 @@ export function CanvasContainer({
       return {
         x: offset.x + card.position.x * scale,
         y: offset.y + (card.position.y + STORYBOARD_CARD_HEADER_OFFSET + STORYBOARD_CARD_HEIGHT / 2) * scale,
+      };
+    }
+
+    if (card.type === "text") {
+      return {
+        x: offset.x + card.position.x * scale,
+        y: offset.y + (card.position.y + TEXT_CARD_HEADER_OFFSET + TEXT_CARD_HEIGHT / 2) * scale,
       };
     }
 
@@ -999,6 +1025,43 @@ export function CanvasContainer({
                   isFocused={focusedCardId === card.id}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   hasOutgoingConnection={connections.some((connection) => connection.fromId === card.id)}
+                  onConnectionDragStart={handleConnectionDragStart}
+                />
+              </div>
+            );
+          }
+
+          // 文本卡片
+          if (card.type === "text") {
+            return (
+              <div
+                key={card.id}
+                data-card
+                data-card-id={card.id}
+                className="pointer-events-auto"
+                ref={(node) => {
+                  if (node) {
+                    cardElementRefs.current.set(card.id, node);
+                  } else {
+                    cardElementRefs.current.delete(card.id);
+                  }
+                }}
+                style={{
+                  position: "absolute",
+                  left: offset.x + card.position.x * scale,
+                  top: offset.y + card.position.y * scale,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                }}
+              >
+                <TextCard
+                  id={card.id}
+                  data={card.data}
+                  onRemove={onRemoveCard}
+                  onFocus={onCardFocus}
+                  onDataChange={(data) => onCardDataChange?.(card.id, data)}
+                  isFocused={focusedCardId === card.id}
+                  onDragStart={(e) => handleCardDragStart(card.id, e)}
                   onConnectionDragStart={handleConnectionDragStart}
                 />
               </div>
