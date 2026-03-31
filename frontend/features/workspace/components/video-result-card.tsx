@@ -83,9 +83,9 @@ export function VideoResultCard({
           onGenerationComplete?.();
           return 100;
         }
-        return prev + 2;
+        return prev + 0.04; // 每80ms增加0.04%，动画更慢（约192秒完成）
       });
-    }, 50);
+    }, 80);
 
     return () => clearInterval(interval);
   }, [isGenerating, onGenerationComplete]);
@@ -192,13 +192,6 @@ export function VideoResultCard({
                 <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white/90 shadow-lg">
                   <LucideIcon name="play" className="h-5 w-5 translate-x-[1px]" />
                 </div>
-              </div>
-
-              {/* 生成中提示 */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-[#27272a]/80 backdrop-blur-sm px-3 py-1.5 rounded-full z-10">
-                <span className="text-[#a1a1aa] text-xs font-medium">
-                  转视频中 {progress}%
-                </span>
               </div>
             </>
           ) : videoData?.base64 ? (

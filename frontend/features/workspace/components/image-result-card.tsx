@@ -80,9 +80,9 @@ export function ImageResultCard({
             onGenerationComplete?.();
             return 100;
           }
-          return prev + 2; // 每50ms增加2%
+          return prev + 0.04; // 每80ms增加0.04%，动画更慢（约192秒完成）
         });
-      }, 50);
+      }, 80);
 
       return () => clearInterval(interval);
     }
