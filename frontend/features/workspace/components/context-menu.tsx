@@ -62,7 +62,7 @@ const menuItems: MenuItem[] = [
   },
   {
     id: "storyboard",
-    label: "分镜表",
+    label: "分镜",
     icon: (
       <svg
         className="w-5 h-5"
@@ -79,7 +79,7 @@ const menuItems: MenuItem[] = [
     submenu: [
       {
         id: "storyboard-view",
-        label: "分镜视表",
+        label: "分镜表单",
         icon: (
           <svg
             className="w-5 h-5"
