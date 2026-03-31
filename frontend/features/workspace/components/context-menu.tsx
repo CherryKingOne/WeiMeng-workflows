@@ -34,7 +34,7 @@ const menuItems: MenuItem[] = [
   },
   {
     id: "text",
-    label: "文字",
+    label: "文本",
     icon: (
       <svg
         className="w-5 h-5"
