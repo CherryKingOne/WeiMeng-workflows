@@ -190,7 +190,7 @@ interface ContextMenuProps {
   isOpen: boolean;
   position: { x: number; y: number };
   onClose: () => void;
-  onAddCard?: (type: "image" | "text" | "video" | "preview", canvasPosition: { x: number; y: number }) => void;
+  onAddCard?: (type: "image" | "text" | "video" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => void;
 }
 
 export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMenuProps) {
@@ -317,7 +317,13 @@ export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMen
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors group ${
                       isDark ? "hover:bg-white/5" : "hover:bg-black/5"
                     }`}
-                    onClick={() => console.log(`Clicked: ${subItem.id}`)}
+                    onClick={() => {
+                      // 处理分镜表单菜单项点击
+                      if (subItem.id === "storyboard-view" && onAddCard) {
+                        onAddCard("storyboard-form", { x: 1500, y: 1200 });
+                      }
+                      onClose();
+                    }}
                   >
                     <span className={`${isDark ? "text-gray-500 group-hover:text-white" : "text-gray-500 group-hover:text-gray-900"}`}>
                       {subItem.icon}

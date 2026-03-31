@@ -195,7 +195,7 @@ function WorkspaceContent() {
   }, []);
 
   // 添加卡片到画布
-  const handleAddCard = useCallback((type: "image" | "text" | "video" | "preview", canvasPosition: { x: number; y: number }) => {
+  const handleAddCard = useCallback((type: "image" | "text" | "video" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => {
     const newCard: CardItem = {
       id: `card-${Date.now()}`,
       type: type === "video" ? "video-generation" : type,

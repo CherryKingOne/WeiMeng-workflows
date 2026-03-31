@@ -7,6 +7,7 @@ import { ImageResultCard } from "./image-result-card";
 import { VideoGenerationCard } from "./video-generation-card";
 import { VideoResultCard } from "./video-result-card";
 import { PreviewCard } from "./preview-card";
+import { StoryboardCard } from "./storyboard-card";
 
 const IMAGE_INPUT_CARD_WIDTH = 320;
 const IMAGE_INPUT_CARD_HEIGHT = 320;
@@ -26,10 +27,13 @@ const VIDEO_RESULT_CARD_HEADER_OFFSET = 36;
 const PREVIEW_CARD_WIDTH = 540;
 const PREVIEW_CARD_HEIGHT = 340;
 const PREVIEW_CARD_HEADER_OFFSET = 0;
+const STORYBOARD_CARD_WIDTH = 820;
+const STORYBOARD_CARD_HEIGHT = 420;
+const STORYBOARD_CARD_HEADER_OFFSET = 24;
 
 export interface CardItem {
   id: string;
-  type: "image" | "text" | "video" | "video-generation" | "image-generation" | "image-result" | "video-result" | "preview";
+  type: "image" | "text" | "video" | "video-generation" | "image-generation" | "image-result" | "video-result" | "preview" | "storyboard-form";
   position: { x: number; y: number };
   data?: Record<string, unknown>;
   // 连接关系：此卡片连接到哪个卡片
@@ -200,6 +204,12 @@ export function CanvasContainer({
           width: PREVIEW_CARD_WIDTH,
           height: PREVIEW_CARD_HEIGHT,
           headerOffset: PREVIEW_CARD_HEADER_OFFSET,
+        };
+      case "storyboard-form":
+        return {
+          width: STORYBOARD_CARD_WIDTH,
+          height: STORYBOARD_CARD_HEIGHT,
+          headerOffset: STORYBOARD_CARD_HEADER_OFFSET,
         };
       default:
         return null;
@@ -493,6 +503,13 @@ export function CanvasContainer({
       return {
         x: offset.x + card.position.x * scale,
         y: offset.y + (card.position.y + PREVIEW_CARD_HEADER_OFFSET + PREVIEW_CARD_HEIGHT / 2) * scale,
+      };
+    }
+
+    if (card.type === "storyboard-form") {
+      return {
+        x: offset.x + card.position.x * scale,
+        y: offset.y + (card.position.y + STORYBOARD_CARD_HEADER_OFFSET + STORYBOARD_CARD_HEIGHT / 2) * scale,
       };
     }
 
@@ -944,6 +961,44 @@ export function CanvasContainer({
                   onFocus={onCardFocus}
                   isFocused={focusedCardId === card.id}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
+                />
+              </div>
+            );
+          }
+
+          // 分镜表单卡片
+          if (card.type === "storyboard-form") {
+            return (
+              <div
+                key={card.id}
+                data-card
+                data-card-id={card.id}
+                className="pointer-events-auto"
+                ref={(node) => {
+                  if (node) {
+                    cardElementRefs.current.set(card.id, node);
+                  } else {
+                    cardElementRefs.current.delete(card.id);
+                  }
+                }}
+                style={{
+                  position: "absolute",
+                  left: offset.x + card.position.x * scale,
+                  top: offset.y + card.position.y * scale,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                }}
+              >
+                <StoryboardCard
+                  id={card.id}
+                  data={card.data}
+                  onRemove={onRemoveCard}
+                  onFocus={onCardFocus}
+                  onDataChange={(data) => onCardDataChange?.(card.id, data)}
+                  isFocused={focusedCardId === card.id}
+                  onDragStart={(e) => handleCardDragStart(card.id, e)}
+                  hasOutgoingConnection={connections.some((connection) => connection.fromId === card.id)}
+                  onConnectionDragStart={handleConnectionDragStart}
                 />
               </div>
             );
