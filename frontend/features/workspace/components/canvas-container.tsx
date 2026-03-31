@@ -54,8 +54,13 @@ export interface Connection {
   toId: string;
 }
 
+export interface CanvasContextMenuPosition {
+  screenPosition: { x: number; y: number };
+  canvasPosition: { x: number; y: number };
+}
+
 interface CanvasContainerProps {
-  onContextMenu: (e: React.MouseEvent) => void;
+  onContextMenu: (position: CanvasContextMenuPosition) => void;
   onCanvasBlur?: () => void;
   cards: CardItem[];
   focusedCardId: string | null;
@@ -172,6 +177,17 @@ export function CanvasContainer({
       onZoomChange(newZoom);
     }
   }, [externalZoom, onZoomChange, offset, scale]);
+
+  const getCanvasPositionFromClient = useCallback((clientX: number, clientY: number) => {
+    const containerRect = containerRef.current?.getBoundingClientRect();
+    const relativeX = clientX - (containerRect?.left ?? 0);
+    const relativeY = clientY - (containerRect?.top ?? 0);
+
+    return {
+      x: (relativeX - offset.x) / scale,
+      y: (relativeY - offset.y) / scale,
+    };
+  }, [offset.x, offset.y, scale]);
 
   const getCardDimensions = useCallback((type: CardItem["type"]) => {
     switch (type) {
@@ -677,7 +693,13 @@ export function CanvasContainer({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
-        onContextMenu={onContextMenu}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onContextMenu({
+            screenPosition: { x: e.clientX, y: e.clientY },
+            canvasPosition: getCanvasPositionFromClient(e.clientX, e.clientY),
+          });
+        }}
         onWheel={handleWheel}
         onClick={(e) => {
           // 点击空白处取消聚焦

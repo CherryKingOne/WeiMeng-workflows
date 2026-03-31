@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { CanvasHeader } from "@/features/workspace/components/canvas-header";
 import { ContextMenu } from "@/features/workspace/components/context-menu";
-import { CanvasContainer, CardItem, Connection } from "@/features/workspace/components/canvas-container";
+import { CanvasContainer, CardItem, Connection, CanvasContextMenuPosition } from "@/features/workspace/components/canvas-container";
 import { Minimap } from "@/features/workspace/components/minimap";
 import { HelpButton } from "@/features/workspace/components/help-button";
 import { StorageModal } from "@/features/workspace/components/storage-modal";
@@ -166,19 +166,21 @@ function WorkspaceContent() {
 
   const [contextMenu, setContextMenu] = useState<{
     isOpen: boolean;
-    position: { x: number; y: number };
+    position: CanvasContextMenuPosition;
   }>({
     isOpen: false,
-    position: { x: 0, y: 0 },
+    position: {
+      screenPosition: { x: 0, y: 0 },
+      canvasPosition: { x: 0, y: 0 },
+    },
   });
 
   const [storageModalOpen, setStorageModalOpen] = useState(false);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleContextMenu = useCallback((position: CanvasContextMenuPosition) => {
     setContextMenu({
       isOpen: true,
-      position: { x: e.clientX, y: e.clientY },
+      position,
     });
   }, []);
 
@@ -195,7 +197,7 @@ function WorkspaceContent() {
   }, []);
 
   // 添加卡片到画布
-  const handleAddCard = useCallback((type: "image" | "text" | "video" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => {
+  const handleAddCard = useCallback((type: "image" | "image-generation" | "text" | "video" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => {
     const newCard: CardItem = {
       id: `card-${Date.now()}`,
       type: type === "video" ? "video-generation" : type,

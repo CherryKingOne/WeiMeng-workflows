@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useTheme } from "@/features/theme/theme-context";
+import type { CanvasContextMenuPosition } from "./canvas-container";
 
 interface MenuItem {
   id: string;
@@ -14,7 +15,26 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    id: "image",
+    id: "file-upload",
+    label: "上传文件",
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.8"
+          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+        ></path>
+      </svg>
+    ),
+  },
+  {
+    id: "image-generation",
     label: "图片",
     icon: (
       <svg
@@ -27,7 +47,7 @@ const menuItems: MenuItem[] = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="1.8"
-          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"
         ></path>
       </svg>
     ),
@@ -188,9 +208,9 @@ const menuItems: MenuItem[] = [
 
 interface ContextMenuProps {
   isOpen: boolean;
-  position: { x: number; y: number };
+  position: CanvasContextMenuPosition;
   onClose: () => void;
-  onAddCard?: (type: "image" | "text" | "video" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => void;
+  onAddCard?: (type: "image" | "image-generation" | "text" | "video" | "preview" | "storyboard-form", canvasPosition: { x: number; y: number }) => void;
 }
 
 export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMenuProps) {
@@ -228,8 +248,8 @@ export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMen
   // 确保菜单不超出视口
   const menuWidth = 200;
   const menuHeight = 500;
-  let posX = position.x;
-  let posY = position.y;
+  let posX = position.screenPosition.x;
+  let posY = position.screenPosition.y;
 
   if (typeof window !== "undefined") {
     if (posX + menuWidth > window.innerWidth) {
@@ -270,20 +290,24 @@ export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMen
               }`}
               onClick={() => {
                 if (!item.submenu) {
-                  // 处理图片菜单项点击 - 卡片位置在画布中心附近
-                  if (item.id === "image" && onAddCard) {
-                    onAddCard("image", { x: 1900, y: 1400 });
+                  // 处理上传文件菜单项点击
+                  if (item.id === "file-upload" && onAddCard) {
+                    onAddCard("image", position.canvasPosition);
                   }
-                  // 处理文字菜单项点击
+                  // 处理图片菜单项点击 - 创建图像生成卡片
+                  if (item.id === "image-generation" && onAddCard) {
+                    onAddCard("image-generation", position.canvasPosition);
+                  }
+                  // 处理文本菜单项点击
                   if (item.id === "text" && onAddCard) {
-                    onAddCard("text", { x: 1900, y: 1400 });
+                    onAddCard("text", position.canvasPosition);
                   }
                   // 处理视频菜单项点击
                   if (item.id === "video" && onAddCard) {
-                    onAddCard("video", { x: 1700, y: 1300 });
+                    onAddCard("video", position.canvasPosition);
                   }
                   if (item.id === "preview" && onAddCard) {
-                    onAddCard("preview", { x: 1600, y: 1220 });
+                    onAddCard("preview", position.canvasPosition);
                   }
                   onClose();
                 }
@@ -310,8 +334,18 @@ export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMen
 
             {/* 子菜单 */}
             {item.submenu && activeSubmenu === item.id && (
-              <div className="absolute left-full top-0 ml-1 submenu-glass rounded-xl p-1 w-[170px]">
-                {item.submenu.map((subItem) => (
+              <div 
+                className="absolute left-full top-0 pl-2 w-[170px]"
+                style={{ 
+                  // 使用负边距创建一个不可见的桥接区域，让鼠标可以平滑移动
+                  marginTop: '-4px',
+                  marginBottom: '-4px',
+                  paddingTop: '4px',
+                  paddingBottom: '4px',
+                }}
+              >
+                <div className="submenu-glass rounded-xl p-1">
+                  {item.submenu.map((subItem) => (
                   <button
                     key={subItem.id}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors group ${
@@ -320,7 +354,7 @@ export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMen
                     onClick={() => {
                       // 处理分镜表单菜单项点击
                       if (subItem.id === "storyboard-view" && onAddCard) {
-                        onAddCard("storyboard-form", { x: 1500, y: 1200 });
+                        onAddCard("storyboard-form", position.canvasPosition);
                       }
                       onClose();
                     }}
@@ -333,6 +367,7 @@ export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMen
                     </span>
                   </button>
                 ))}
+                </div>
               </div>
             )}
           </div>
