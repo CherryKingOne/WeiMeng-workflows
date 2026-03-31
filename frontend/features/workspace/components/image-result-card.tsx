@@ -6,6 +6,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 function LucideIcon({ name, className }: { name: string; className?: string }) {
   const iconPaths: Record<string, string> = {
     x: "M18 6L6 18M6 6l12 12",
+    plus: "M12 5v14M5 12h14",
+    eye: "M12 5C7 5 2.73 8.11 1 12C2.73 15.89 7 19 12 19C17 19 21.27 15.89 23 12C21.27 8.11 17 5 12 5Z",
   };
 
   return (
@@ -19,6 +21,20 @@ function LucideIcon({ name, className }: { name: string; className?: string }) {
       strokeLinejoin="round"
     >
       <path d={iconPaths[name] || ""} />
+      {name === "eye" && (
+        <>
+          <circle
+            cx="12"
+            cy="12"
+            r="3.5"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+        </>
+      )}
     </svg>
   );
 }
@@ -31,6 +47,8 @@ interface ImageResultCardProps {
   onDragStart?: (e: React.MouseEvent) => void;
   isGenerating?: boolean;
   onGenerationComplete?: () => void;
+  data?: Record<string, unknown>;
+  onConnectionDragStart?: (id: string, e: React.MouseEvent) => void;
 }
 
 export function ImageResultCard({
@@ -41,9 +59,15 @@ export function ImageResultCard({
   onDragStart,
   isGenerating = false,
   onGenerationComplete,
+  data,
+  onConnectionDragStart,
 }: ImageResultCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  // 解析图片数据
+  const imageData = data?.imageData as { base64?: string; mime_type?: string; file_name?: string } | undefined;
 
   // 生成进度动画
   useEffect(() => {
@@ -80,55 +104,168 @@ export function ImageResultCard({
     onFocus?.(id);
   }, [id, onFocus]);
 
+  const handleConnectionHandleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+    onConnectionDragStart?.(id, e);
+  }, [id, onConnectionDragStart, onFocus]);
+
+  const stopPropagation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
   return (
     <div
       ref={cardRef}
-      className="cursor-grab"
+      className="group relative cursor-grab select-none"
       onMouseDown={handleMouseDown}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* 头部标题 */}
-      <div className="flex items-center gap-2 px-1 mb-2 font-medium tracking-wide pointer-events-none select-none">
-        <span className="text-[#a1a1aa] text-[15px]">生成图片_1</span>
+      {/* 标题 */}
+      <div className="absolute -top-9 left-0 text-[15px] font-medium tracking-[0.16em] text-[#888888]">
+        预览节点
       </div>
 
       {/* 卡片主体 */}
       <div
-        className={`relative w-[260px] h-[260px] rounded-[14px] overflow-visible ring-1 ring-white/5 shadow-2xl ${
-          isFocused ? "ring-neutral-500/50" : ""
+        className={`relative h-[340px] w-[540px] rounded-[14px] bg-[#161618] transition-all duration-150 ${
+          isFocused
+            ? "border-2 border-[#99999a] shadow-[0_0_12px_rgba(255,255,255,0.1)]"
+            : "border border-[#2a2a2c] shadow-[0_20px_60px_rgba(0,0,0,0.32)]"
         }`}
         onClick={handleCardClick}
       >
-        {/* 内容区域 - 单独设置 overflow-hidden */}
-        <div className="absolute inset-0 rounded-[14px] overflow-hidden bg-[#18181b]">
-          {/* 灰白色进度从左往右渲染整个卡片 */}
-          <div
-            className="absolute inset-0 bg-gradient-to-b from-[#c4c4c8] to-[#a8a8ac]"
-            style={{
-              clipPath: `inset(0 ${100 - progress}% 0 0)`,
-            }}
-          />
+        {/* 左侧输入端口 */}
+        <div
+          className={`absolute left-[-6px] top-1/2 h-[10px] w-[10px] -translate-y-1/2 rounded-full bg-[#606060] ${
+            isFocused ? "border border-[#161618]" : ""
+          }`}
+        />
 
-          {/* 左侧输入端口 */}
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center">
-            <div className="absolute left-0 -translate-x-1/2 w-[9px] h-[9px] bg-[#f4f4f5] rounded-full border-[1.5px] border-[#0b0b0e] z-10 box-content"></div>
-          </div>
+        {/* 内容区域 */}
+        <div className="absolute inset-0 rounded-[14px] overflow-hidden">
+          {isGenerating ? (
+            // 生成中：显示进度
+            <>
+              {/* 进度填充 */}
+              <div
+                className="absolute inset-0 bg-gradient-to-b from-[#c4c4c8] to-[#a8a8ac]"
+                style={{
+                  clipPath: `inset(0 ${100 - progress}% 0 0)`,
+                }}
+              />
+              
+              {/* 预览图标覆盖层 */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <svg
+                  width="36"
+                  height="36"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="mb-4 opacity-30"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 5C7 5 2.73 8.11 1 12C2.73 15.89 7 19 12 19C17 19 21.27 15.89 23 12C21.27 8.11 17 5 12 5Z"
+                    stroke="#4a4a4c"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="3.5"
+                    stroke="#4a4a4c"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="12" r="1.5" fill="#4a4a4c" />
+                </svg>
+              </div>
+
+              {/* 生成中提示 */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-[#27272a]/80 backdrop-blur-sm px-3 py-1.5 rounded-full z-10">
+                <span className="text-[#a1a1aa] text-xs font-medium">
+                  生成中 {progress}%
+                </span>
+              </div>
+            </>
+          ) : imageData?.base64 ? (
+            // 有图片数据：显示图片
+            <img
+              src={imageData.base64}
+              alt={imageData.file_name || "生成的图片"}
+              className="w-full h-full object-contain"
+            />
+          ) : (
+            // 默认状态：显示提示
+            <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+              <svg
+                width="36"
+                height="36"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="mb-4"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 5C7 5 2.73 8.11 1 12C2.73 15.89 7 19 12 19C17 19 21.27 15.89 23 12C21.27 8.11 17 5 12 5Z"
+                  stroke="#4a4a4c"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="3.5"
+                  stroke="#4a4a4c"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="12" cy="12" r="1.5" fill="#4a4a4c" />
+              </svg>
+
+              <p className="text-[15px] font-normal tracking-[0.05em] text-[#999999]">
+                连接 AI 绘图 / AI 视频 / 可灵动作迁移 节点
+              </p>
+
+              <p className="mt-3 text-[13px] tracking-[0.05em] text-[#666666]">
+                或从历史记录发送到此处进行预览
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* 右上关闭按钮 */}
-        <button
-          className="absolute -top-2.5 -right-2.5 w-7 h-7 bg-[#2a2d32] border-neutral-700 border rounded-full flex items-center justify-center text-neutral-400 hover:text-white transition-colors z-20"
-          onClick={handleRemove}
-        >
-          <LucideIcon name="x" className="w-3.5 h-3.5" />
-        </button>
+        {/* 右侧添加连接按钮 - hover 时显示 */}
+        {isHovered && (
+          <button
+            type="button"
+            className="absolute -right-[22px] top-1/2 z-20 flex h-[44px] w-[44px] -translate-y-1/2 items-center justify-center rounded-full border border-[#555] bg-[#161618] text-white transition-all duration-150 hover:bg-[#222]"
+            onMouseDown={handleConnectionHandleMouseDown}
+            onClick={stopPropagation}
+            aria-label="添加连接"
+          >
+            <LucideIcon name="plus" className="h-6 w-6" />
+          </button>
+        )}
 
-        {/* 生成中提示 */}
-        {isGenerating && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-[#27272a]/80 backdrop-blur-sm px-3 py-1.5 rounded-full z-10">
-            <span className="text-[#a1a1aa] text-xs font-medium">
-              生成中 {progress}%
-            </span>
-          </div>
+        {/* 右上角删除按钮 - hover 时显示 */}
+        {isHovered && (
+          <button
+            type="button"
+            className="absolute -right-[10px] -top-[10px] z-20 flex h-5 w-5 items-center justify-center rounded-full border border-[#444] bg-[#2a2a2b] text-[#999999] transition-all duration-150 hover:bg-[#333]"
+            onClick={handleRemove}
+            aria-label="删除预览节点"
+          >
+            <LucideIcon name="x" className="h-[10px] w-[10px]" />
+          </button>
         )}
       </div>
     </div>
