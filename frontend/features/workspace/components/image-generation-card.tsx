@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useTheme } from "@/features/theme/theme-context";
 
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
@@ -11,14 +10,14 @@ function LucideIcon({ name, className }: { name: string; className?: string }) {
     "chevron-right": "M9 5l7 7-7 7",
     play: "M8 5v14l11-7z",
     expand: "M4 14v6h6M20 10V4h-6M4 20l7-7M20 4l-7 7",
-    check: "M5 13l4 4L19 7",
+    plus: "M12 5v14M5 12h14",
   };
 
   return (
     <svg
       className={className}
-      fill="none"
-      stroke="currentColor"
+      fill={name === "play" ? "currentColor" : "none"}
+      stroke={name === "play" ? "none" : "currentColor"}
       viewBox="0 0 24 24"
       strokeWidth={1.5}
       strokeLinecap="round"
@@ -35,6 +34,7 @@ interface ImageGenerationCardProps {
   onFocus?: (id: string) => void;
   isFocused?: boolean;
   onDragStart?: (e: React.MouseEvent) => void;
+  onConnectionDragStart?: (id: string, e: React.MouseEvent) => void;
   onGenerate?: (id: string) => void;
   isGenerating?: boolean;
   data?: Record<string, unknown>;
@@ -47,23 +47,40 @@ export function ImageGenerationCard({
   onFocus,
   isFocused = false,
   onDragStart,
+  onConnectionDragStart,
   onGenerate,
   isGenerating = false,
   data,
   onDataChange,
 }: ImageGenerationCardProps) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const cardRef = useRef<HTMLDivElement>(null);
 
   const [prompt, setPrompt] = useState("");
-  const [showToast, setShowToast] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("Nano Banana Pro");
+  const [selectedModel, setSelectedModel] = useState("Qwen Image Edit");
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsedEditorOpen, setIsCollapsedEditorOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     setPrompt(typeof data?.prompt === "string" ? data.prompt : "");
-    setSelectedModel(typeof data?.selectedModel === "string" ? data.selectedModel : "Nano Banana Pro");
+    setSelectedModel(typeof data?.selectedModel === "string" ? data.selectedModel : "Qwen Image Edit");
+    setIsCollapsed(Boolean(data?.isCollapsed));
+    setIsCollapsedEditorOpen(Boolean(data?.isCollapsedEditorOpen));
   }, [data]);
+
+  const syncCardData = useCallback((next: {
+    prompt?: string;
+    selectedModel?: string;
+    isCollapsed?: boolean;
+    isCollapsedEditorOpen?: boolean;
+  }) => {
+    onDataChange?.({
+      prompt: next.prompt ?? prompt,
+      selectedModel: next.selectedModel ?? selectedModel,
+      isCollapsed: next.isCollapsed ?? isCollapsed,
+      isCollapsedEditorOpen: next.isCollapsedEditorOpen ?? isCollapsedEditorOpen,
+    });
+  }, [isCollapsed, isCollapsedEditorOpen, onDataChange, prompt, selectedModel]);
 
   // 处理拖拽开始
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -79,124 +96,243 @@ export function ImageGenerationCard({
   // 处理生成按钮点击
   const handleGenerate = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // 触发生成回调
+    onFocus?.(id);
     onGenerate?.(id);
-  }, [id, onGenerate]);
+  }, [id, onFocus, onGenerate]);
 
   // 处理卡片点击
   const handleCardClick = useCallback(() => {
     onFocus?.(id);
   }, [id, onFocus]);
 
+  const handleToggleCollapsed = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      const nextCollapsedEditorOpen = next ? false : isCollapsedEditorOpen;
+      setIsCollapsedEditorOpen(nextCollapsedEditorOpen);
+      syncCardData({
+        isCollapsed: next,
+        isCollapsedEditorOpen: nextCollapsedEditorOpen,
+      });
+      return next;
+    });
+  }, [id, isCollapsedEditorOpen, onFocus, syncCardData]);
+
+  const handleToggleCollapsedEditor = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+    setIsCollapsedEditorOpen((prev) => {
+      const next = !prev;
+      syncCardData({ isCollapsedEditorOpen: next });
+      return next;
+    });
+  }, [id, onFocus, syncCardData]);
+
+  const handlePromptChange = useCallback((nextPrompt: string) => {
+    setPrompt(nextPrompt);
+    syncCardData({ prompt: nextPrompt });
+  }, [syncCardData]);
+
+  const handleUtilityButtonClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+  }, [id, onFocus]);
+
+  const handleConnectionHandleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+    onConnectionDragStart?.(id, e);
+  }, [id, onConnectionDragStart, onFocus]);
+
+  const stopPropagation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  const chipButtonClass = "rounded-lg border border-white/10 bg-[#18181b] px-4 py-2 text-sm text-gray-300 transition hover:bg-white/5";
+  const compactChipButtonClass = "rounded-lg border border-white/10 bg-[#18181b] px-4 py-2 text-sm text-gray-300 transition hover:bg-white/5";
+  const showCollapsedEditor = isCollapsed && isCollapsedEditorOpen;
+
   return (
     <div
       ref={cardRef}
-      className="cursor-grab"
+      className="group cursor-grab"
       onMouseDown={handleMouseDown}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* 头部标题 */}
       <div className="flex items-center gap-2 px-1 mb-3">
         <LucideIcon name="sparkles" className="w-4 h-4 text-[#a1a1aa]" />
         <span className="text-[#a1a1aa] text-sm font-medium tracking-wide">生成图片</span>
       </div>
 
-      {/* 卡片主体 */}
-      <div
-        className={`relative bg-[#18181b] rounded-xl border ${
-          isFocused ? "border-neutral-500" : "border-[#27272a]"
-        } shadow-lg flex flex-col h-[380px] w-[480px] overflow-visible`}
-        onClick={handleCardClick}
-      >
-        {/* 左侧节点连接点 */}
-        <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#52525b] border-2 border-[#18181b]"></div>
-
-        {/* 右上关闭按钮 */}
-        <button
-          className="absolute -top-2.5 -right-2.5 w-7 h-7 bg-[#2a2d32] border-neutral-700 border rounded-full flex items-center justify-center text-neutral-400 hover:text-white transition-colors z-20"
-          onClick={handleRemove}
+      {!isCollapsed ? (
+        <div
+          className="relative flex h-[392px] w-[520px] flex-col justify-between overflow-visible rounded-2xl border border-white/10 bg-[#18181b] p-4 shadow-2xl"
+          onClick={handleCardClick}
         >
-          <LucideIcon name="x" className="w-3.5 h-3.5" />
-        </button>
+          <div className="absolute -left-[5px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-gray-500" />
 
-        {/* 输入区域 */}
-        <textarea
-          className="w-full flex-1 bg-transparent border-none outline-none resize-none p-6 text-[#e4e4e7] placeholder-[#52525b] text-base"
-          placeholder="输入提示词..."
-          value={prompt}
-          onChange={(e) => {
-            const nextPrompt = e.target.value;
-            setPrompt(nextPrompt);
-            onDataChange?.({
-              prompt: nextPrompt,
-              selectedModel,
-            });
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
+          {isHovered && (
+            <>
+              <button
+                type="button"
+                className="absolute -right-[10px] -top-[10px] z-10 flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-[#27272a] text-gray-400 transition hover:bg-gray-700 hover:text-white"
+                onMouseDown={stopPropagation}
+                onClick={handleRemove}
+                aria-label="关闭生成图片卡片"
+              >
+                <LucideIcon name="x" className="h-3.5 w-3.5" />
+              </button>
 
-        {/* 底部控制栏 */}
-        <div className="p-5 pt-0 flex flex-col gap-3">
-          {/* 快捷提示词链接 */}
-          <div className="flex items-center gap-1 cursor-pointer w-max group">
-            <span className="text-[#e4e4e7] text-sm font-medium group-hover:text-white transition-colors">
-              常用提示词库
-            </span>
-            <LucideIcon name="chevron-right" className="w-3.5 h-3.5 text-[#a1a1aa] group-hover:text-white transition-colors" />
-          </div>
+              <button
+                type="button"
+                className="absolute -right-[24px] top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#18181b] text-white shadow-lg transition hover:bg-[#27272a]"
+                onMouseDown={handleConnectionHandleMouseDown}
+                onClick={stopPropagation}
+                aria-label="添加连接"
+              >
+                <LucideIcon name="plus" className="h-6 w-6" />
+              </button>
+            </>
+          )}
 
-          {/* 按钮组 */}
-          <div className="flex items-center gap-2.5">
-            {/* 模型选择 */}
-            <div className="flex-1 bg-transparent border border-[#3f3f46] rounded-md px-2.5 py-1 text-xs text-[#d4d4d8] cursor-pointer hover:bg-[#27272a] transition-colors flex items-center justify-between">
-              <span>{selectedModel}</span>
-              <svg className="w-3.5 h-3.5 text-[#71717a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-              </svg>
+          <textarea
+            className="w-full flex-1 resize-none border-none bg-transparent px-3 pt-4 text-[17px] font-light tracking-wide text-gray-300 outline-none placeholder:text-gray-500"
+            placeholder="输入提示词..."
+            value={prompt}
+            onChange={(e) => handlePromptChange(e.target.value)}
+            onMouseDown={stopPropagation}
+            onClick={stopPropagation}
+            onFocus={() => onFocus?.(id)}
+          />
+
+          <div className="flex flex-col gap-3">
+            <div
+              className="group flex w-max cursor-pointer items-center gap-1"
+              onMouseDown={stopPropagation}
+              onClick={handleUtilityButtonClick}
+            >
+              <span className="text-sm font-medium text-[#e4e4e7] transition group-hover:text-white">
+                常用提示词库
+              </span>
+              <LucideIcon
+                name="chevron-right"
+                className="h-3.5 w-3.5 text-[#a1a1aa] transition group-hover:text-white"
+              />
             </div>
 
-            {/* 参数按钮 */}
-            <button className="bg-transparent border border-[#3f3f46] rounded-md px-2.5 py-1 text-xs text-[#d4d4d8] hover:bg-[#27272a] transition-colors">
-              1:1
-            </button>
-            <button className="bg-transparent border border-[#3f3f46] rounded-md px-2.5 py-1 text-xs text-[#d4d4d8] hover:bg-[#27272a] transition-colors">
-              1K
-            </button>
-            <button className="bg-transparent border border-[#3f3f46] rounded-md px-2.5 py-1 text-xs text-[#d4d4d8] hover:bg-[#27272a] transition-colors">
-              1张
-            </button>
-            <button className="bg-transparent border border-[#3f3f46] rounded-md px-2.5 py-1 text-xs text-[#d4d4d8] hover:bg-[#27272a] transition-colors">
-              异步
-            </button>
-
-            {/* 播放/生成按钮 */}
-            <button
-              className={`bg-transparent border border-[#3f3f46] rounded-md p-1 text-[#d4d4d8] hover:bg-white hover:text-black transition-colors flex items-center justify-center group ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title="生成图片"
-              onClick={handleGenerate}
-              disabled={isGenerating}
-            >
-              <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </button>
-
-            {/* 展开按钮 */}
-            <button className="text-[#71717a] hover:text-[#d4d4d8] transition-colors ml-1">
-              <LucideIcon name="expand" className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                className="flex flex-1 items-center justify-between rounded-lg border border-white/10 bg-[#121214] px-4 py-2 text-sm text-gray-200"
+                onMouseDown={stopPropagation}
+                onClick={handleUtilityButtonClick}
+              >
+                <span>{selectedModel}</span>
+                <svg className="h-3.5 w-3.5 text-[#71717a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <button type="button" className={chipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1:1</button>
+              <button type="button" className={chipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1K</button>
+              <button type="button" className={chipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>异步</button>
+              <button
+                type="button"
+                className={`flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-[#18181b] text-white transition hover:bg-white/5 ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
+                onMouseDown={stopPropagation}
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                title="生成图片"
+              >
+                <LucideIcon name="play" className="h-3.5 w-3.5 fill-current stroke-none" />
+              </button>
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center text-gray-500 transition hover:text-gray-300"
+                onMouseDown={stopPropagation}
+                onClick={handleToggleCollapsed}
+                title="收起卡片"
+              >
+                <LucideIcon name="expand" className="h-4.5 w-4.5" />
+              </button>
+            </div>
           </div>
         </div>
+      ) : (
+        <div className="relative flex w-[520px] flex-col gap-2" onClick={handleCardClick}>
+          <div className="absolute -left-[5px] top-8 z-20 h-2.5 w-2.5 rounded-full bg-gray-500" />
 
-        {/* 成功提示 Toast */}
-        {showToast && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#27272a]/90 backdrop-blur-sm border border-[#3f3f46] text-[#e4e4e7] px-4 py-2.5 rounded-lg shadow-2xl flex items-center gap-2.5 z-10">
-            <div className="bg-[#10b981]/20 p-1 rounded-full">
-              <LucideIcon name="check" className="w-3.5 h-3.5 text-[#10b981]" />
+          <div className="relative z-10 flex flex-col rounded-2xl border border-white/10 bg-[#18181b] p-3 shadow-xl">
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                className="flex flex-1 items-center rounded-lg border border-white/10 bg-[#121214] px-4 py-2 text-sm text-gray-200"
+                onMouseDown={stopPropagation}
+                onClick={handleUtilityButtonClick}
+              >
+                {selectedModel}
+              </button>
+              <button type="button" className={compactChipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1:1</button>
+              <button type="button" className={compactChipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1K</button>
+              <button
+                type="button"
+                className={`flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-[#18181b] text-white transition hover:bg-white/5 ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
+                onMouseDown={stopPropagation}
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                title="生成图片"
+              >
+                <LucideIcon name="play" className="h-3.5 w-3.5 fill-current stroke-none" />
+              </button>
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center text-gray-500 transition hover:text-gray-300"
+                onMouseDown={stopPropagation}
+                onClick={handleToggleCollapsed}
+                title="展开卡片"
+              >
+                <LucideIcon name="expand" className="h-4.5 w-4.5" />
+              </button>
             </div>
-            <span className="text-sm font-medium tracking-wide">参数已存储并加入队列</span>
+
+            <div className="mt-2 flex w-full justify-center">
+              <button
+                type="button"
+                className="flex items-center justify-center"
+                onMouseDown={stopPropagation}
+                onClick={handleToggleCollapsedEditor}
+                title={showCollapsedEditor ? "收起输入面板" : "展开输入面板"}
+              >
+                <div
+                  className={`rounded-full transition-all ${
+                    showCollapsedEditor
+                      ? "h-1 w-12 bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.6)]"
+                      : "h-1 w-10 bg-[#3f3f46]"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+
+          {showCollapsedEditor && (
+            <div className="relative h-[148px] w-full rounded-2xl border border-white/10 bg-[#18181b] p-2 shadow-xl">
+              <div className="flex h-full w-full rounded-xl border border-blue-900/50 bg-[#161619] p-4 ring-1 ring-blue-500/20 shadow-[inset_0_0_20px_rgba(37,99,235,0.05)]">
+                <textarea
+                  className="h-full w-full resize-none border-none bg-transparent text-[17px] font-light tracking-wide text-gray-300 outline-none placeholder:text-gray-500"
+                  placeholder="输入提示词..."
+                  value={prompt}
+                  onChange={(e) => handlePromptChange(e.target.value)}
+                  onMouseDown={stopPropagation}
+                  onClick={stopPropagation}
+                  onFocus={() => onFocus?.(id)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

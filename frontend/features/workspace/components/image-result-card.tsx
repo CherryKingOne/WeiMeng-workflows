@@ -110,7 +110,6 @@ export function ImageResultCard({
 
           {/* 左侧输入端口 */}
           <div className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center">
-            {/* 白色的端口圆点 */}
             <div className="absolute left-0 -translate-x-1/2 w-[9px] h-[9px] bg-[#f4f4f5] rounded-full border-[1.5px] border-[#0b0b0e] z-10 box-content"></div>
           </div>
         </div>

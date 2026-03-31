@@ -193,7 +193,7 @@ function WorkspaceContent() {
   }, []);
 
   // 添加卡片到画布
-  const handleAddCard = useCallback((type: "image" | "text" | "video", canvasPosition: { x: number; y: number }) => {
+  const handleAddCard = useCallback((type: "image" | "text" | "video" | "preview", canvasPosition: { x: number; y: number }) => {
     const newCard: CardItem = {
       id: `card-${Date.now()}`,
       type: type === "video" ? "video-generation" : type,
@@ -233,6 +233,10 @@ function WorkspaceContent() {
     setFocusedCardId(id);
   }, []);
 
+  const handleCanvasBlur = useCallback(() => {
+    setFocusedCardId(null);
+  }, []);
+
   // 处理卡片移动
   const handleCardMove = useCallback((id: string, position: { x: number; y: number }) => {
     setCards((prev) => {
@@ -250,6 +254,24 @@ function WorkspaceContent() {
           : card
       )
     );
+  }, []);
+
+  const handleAddConnection = useCallback((fromId: string, toId: string) => {
+    if (fromId === toId) {
+      return;
+    }
+
+    setConnections((prev) => {
+      const exists = prev.some(
+        (connection) => connection.fromId === fromId && connection.toId === toId
+      );
+
+      if (exists) {
+        return prev;
+      }
+
+      return [...prev, { fromId, toId }];
+    });
   }, []);
 
   // 处理生成按钮点击（从 ImageGenerationCard 触发）
@@ -273,8 +295,8 @@ function WorkspaceContent() {
               y: generationCard.position.y + 110,
             }
           : {
-              x: generationCard.position.x + 540,
-              y: generationCard.position.y + 60,
+              x: generationCard.position.x + 580,
+              y: generationCard.position.y + 92,
             },
         isGenerating: true,
       };
@@ -331,6 +353,7 @@ function WorkspaceContent() {
       {/* 画布容器 */}
       <CanvasContainer 
         onContextMenu={handleContextMenu}
+        onCanvasBlur={handleCanvasBlur}
         cards={cards}
         focusedCardId={focusedCardId}
         onRemoveCard={handleRemoveCard}
@@ -338,6 +361,7 @@ function WorkspaceContent() {
         onCardDataChange={handleCardDataChange}
         onCardMove={handleCardMove}
         onAddConnectedCard={handleAddConnectedCard}
+        onAddConnection={handleAddConnection}
         connections={connections}
         generatingCards={generatingCards}
         onGenerationComplete={handleGenerationComplete}

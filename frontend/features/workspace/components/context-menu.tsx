@@ -440,7 +440,7 @@ interface ContextMenuProps {
   isOpen: boolean;
   position: { x: number; y: number };
   onClose: () => void;
-  onAddCard?: (type: "image" | "text" | "video", canvasPosition: { x: number; y: number }) => void;
+  onAddCard?: (type: "image" | "text" | "video" | "preview", canvasPosition: { x: number; y: number }) => void;
 }
 
 export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMenuProps) {
@@ -531,6 +531,9 @@ export function ContextMenu({ isOpen, position, onClose, onAddCard }: ContextMen
                   // 处理视频菜单项点击
                   if (item.id === "video" && onAddCard) {
                     onAddCard("video", { x: 1700, y: 1300 });
+                  }
+                  if (item.id === "preview" && onAddCard) {
+                    onAddCard("preview", { x: 1600, y: 1220 });
                   }
                   onClose();
                 }

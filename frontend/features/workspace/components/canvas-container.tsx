@@ -6,13 +6,14 @@ import { ImageGenerationCard } from "./image-generation-card";
 import { ImageResultCard } from "./image-result-card";
 import { VideoGenerationCard } from "./video-generation-card";
 import { VideoResultCard } from "./video-result-card";
+import { PreviewCard } from "./preview-card";
 
 const IMAGE_INPUT_CARD_WIDTH = 320;
 const IMAGE_INPUT_CARD_HEIGHT = 320;
 const IMAGE_INPUT_CARD_HEADER_OFFSET = 24;
-const IMAGE_GENERATION_CARD_WIDTH = 480;
-const IMAGE_GENERATION_CARD_HEIGHT = 380;
-const IMAGE_GENERATION_CARD_HEADER_OFFSET = 46;
+const IMAGE_GENERATION_CARD_WIDTH = 520;
+const IMAGE_GENERATION_CARD_HEIGHT = 392;
+const IMAGE_GENERATION_CARD_HEADER_OFFSET = 28;
 const IMAGE_RESULT_CARD_WIDTH = 260;
 const IMAGE_RESULT_CARD_HEIGHT = 260;
 const IMAGE_RESULT_CARD_HEADER_OFFSET = 24;
@@ -22,10 +23,13 @@ const VIDEO_GENERATION_CARD_HEADER_OFFSET = 40;
 const VIDEO_RESULT_CARD_WIDTH = 320;
 const VIDEO_RESULT_CARD_HEIGHT = 180;
 const VIDEO_RESULT_CARD_HEADER_OFFSET = 24;
+const PREVIEW_CARD_WIDTH = 540;
+const PREVIEW_CARD_HEIGHT = 340;
+const PREVIEW_CARD_HEADER_OFFSET = 0;
 
 export interface CardItem {
   id: string;
-  type: "image" | "text" | "video" | "video-generation" | "image-generation" | "image-result" | "video-result";
+  type: "image" | "text" | "video" | "video-generation" | "image-generation" | "image-result" | "video-result" | "preview";
   position: { x: number; y: number };
   data?: Record<string, unknown>;
   // 连接关系：此卡片连接到哪个卡片
@@ -42,6 +46,7 @@ export interface Connection {
 
 interface CanvasContainerProps {
   onContextMenu: (e: React.MouseEvent) => void;
+  onCanvasBlur?: () => void;
   cards: CardItem[];
   focusedCardId: string | null;
   onRemoveCard: (id: string) => void;
@@ -49,6 +54,7 @@ interface CanvasContainerProps {
   onCardDataChange?: (id: string, data: Record<string, unknown>) => void;
   onCardMove?: (id: string, position: { x: number; y: number }) => void;
   onAddConnectedCard?: (parentId: string, type: string, position: { x: number; y: number }) => void;
+  onAddConnection?: (fromId: string, toId: string) => void;
   connections?: Connection[];
   generatingCards?: Set<string>;
   onGenerationComplete?: (resultCardId: string) => void;
@@ -57,6 +63,7 @@ interface CanvasContainerProps {
 
 export function CanvasContainer({
   onContextMenu,
+  onCanvasBlur,
   cards,
   focusedCardId,
   onRemoveCard,
@@ -64,6 +71,7 @@ export function CanvasContainer({
   onCardDataChange,
   onCardMove,
   onAddConnectedCard,
+  onAddConnection,
   connections = [],
   generatingCards = new Set(),
   onGenerationComplete,
@@ -71,6 +79,8 @@ export function CanvasContainer({
 }: CanvasContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cardsContainerRef = useRef<HTMLDivElement>(null);
+  const cardElementRefs = useRef(new Map<string, HTMLDivElement>());
+  const connectionPathRefs = useRef(new Map<string, SVGPathElement>());
 
   // 画布位置状态
   const [offset, setOffset] = useState({ x: -1500, y: -1200 });
@@ -86,6 +96,8 @@ export function CanvasContainer({
     cardStartX: number;
     cardStartY: number;
     currentPosition: { x: number; y: number };
+    pendingPosition: { x: number; y: number } | null;
+    animationFrameId: number | null;
   }>({
     isDragging: false,
     cardId: null,
@@ -94,7 +106,16 @@ export function CanvasContainer({
     cardStartX: 0,
     cardStartY: 0,
     currentPosition: { x: 0, y: 0 },
+    pendingPosition: null,
+    animationFrameId: null,
   });
+
+  const [connectionDraft, setConnectionDraft] = useState<{
+    fromId: string;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+  const [connectionTargetId, setConnectionTargetId] = useState<string | null>(null);
 
   // SVG 连接线 ref
   const svgRef = useRef<SVGSVGElement>(null);
@@ -130,6 +151,12 @@ export function CanvasContainer({
           width: VIDEO_RESULT_CARD_WIDTH,
           height: VIDEO_RESULT_CARD_HEIGHT,
           headerOffset: VIDEO_RESULT_CARD_HEADER_OFFSET,
+        };
+      case "preview":
+        return {
+          width: PREVIEW_CARD_WIDTH,
+          height: PREVIEW_CARD_HEIGHT,
+          headerOffset: PREVIEW_CARD_HEADER_OFFSET,
         };
       default:
         return null;
@@ -214,6 +241,8 @@ export function CanvasContainer({
       cardStartX: card.position.x,
       cardStartY: card.position.y,
       currentPosition: { x: card.position.x, y: card.position.y },
+      pendingPosition: { x: card.position.x, y: card.position.y },
+      animationFrameId: null,
     };
   }, [cards]);
 
@@ -259,19 +288,14 @@ export function CanvasContainer({
       const controlOffset = Math.min(Math.abs(dx) * 0.5, 100);
       const path = `M ${fromX} ${fromY} C ${fromX + controlOffset} ${fromY}, ${toX - controlOffset} ${toY}, ${toX} ${toY}`;
       
-      // 更新 SVG 元素
-      const pathElement = svgRef.current?.querySelector(`[data-connection="${connection.fromId}-${connection.toId}"]`);
-      const circleElement = svgRef.current?.querySelector(`[data-connection-circle="${connection.fromId}-${connection.toId}"]`);
+      const connectionKey = `${connection.fromId}-${connection.toId}`;
+      const pathElement = connectionPathRefs.current.get(connectionKey);
       
       if (pathElement) {
-        pathElement.setAttribute('d', path);
-      }
-      if (circleElement) {
-        circleElement.setAttribute('cx', String((fromX + toX) / 2));
-        circleElement.setAttribute('cy', String((fromY + toY) / 2));
+        pathElement.setAttribute("d", path);
       }
     });
-  }, [connections, cards, offset]);
+  }, [connections, cards, getAnchorPosition]);
 
   // 处理卡片拖拽移动 - 使用全局事件和 requestAnimationFrame
   useEffect(() => {
@@ -284,24 +308,45 @@ export function CanvasContainer({
       const newX = state.cardStartX + deltaX;
       const newY = state.cardStartY + deltaY;
 
-      // 直接更新 DOM 元素位置（不触发 React 重新渲染）
-      const cardElement = document.querySelector(`[data-card-id="${state.cardId}"]`);
-      if (cardElement) {
-        cardElement.setAttribute('style', `position: absolute; left: ${offset.x + newX}px; top: ${offset.y + newY}px;`);
+      state.pendingPosition = { x: newX, y: newY };
+
+      if (state.animationFrameId !== null) {
+        return;
       }
 
-      // 更新当前位置
-      state.currentPosition = { x: newX, y: newY };
-      
-      // 实时更新连接线
-      updateConnectionsForCard(state.cardId, newX, newY);
+      state.animationFrameId = window.requestAnimationFrame(() => {
+        const currentState = cardDragState.current;
+        currentState.animationFrameId = null;
+
+        if (!currentState.isDragging || !currentState.cardId || !currentState.pendingPosition) {
+          return;
+        }
+
+        const cardElement = cardElementRefs.current.get(currentState.cardId);
+        if (cardElement) {
+          cardElement.style.left = `${offset.x + currentState.pendingPosition.x}px`;
+          cardElement.style.top = `${offset.y + currentState.pendingPosition.y}px`;
+        }
+
+        currentState.currentPosition = currentState.pendingPosition;
+        updateConnectionsForCard(
+          currentState.cardId,
+          currentState.pendingPosition.x,
+          currentState.pendingPosition.y
+        );
+      });
     };
 
     const handleGlobalMouseUp = () => {
       const state = cardDragState.current;
+
+      if (state.animationFrameId !== null) {
+        window.cancelAnimationFrame(state.animationFrameId);
+      }
+
       if (state.isDragging && state.cardId) {
         // 拖拽结束时，更新 React 状态
-        onCardMove?.(state.cardId, state.currentPosition);
+        onCardMove?.(state.cardId, state.pendingPosition ?? state.currentPosition);
       }
       
       cardDragState.current = {
@@ -312,6 +357,8 @@ export function CanvasContainer({
         cardStartX: 0,
         cardStartY: 0,
         currentPosition: { x: 0, y: 0 },
+        pendingPosition: null,
+        animationFrameId: null,
       };
     };
 
@@ -399,8 +446,93 @@ export function CanvasContainer({
       };
     }
 
+    if (card.type === "preview") {
+      return {
+        x: offset.x + card.position.x,
+        y: offset.y + card.position.y + PREVIEW_CARD_HEADER_OFFSET + PREVIEW_CARD_HEIGHT / 2,
+      };
+    }
+
     return null;
   }, [offset.x, offset.y]);
+
+  const handleConnectionDragStart = useCallback((cardId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const card = cards.find((item) => item.id === cardId);
+    if (!card) return;
+
+    const outputAnchor = getCardOutputAnchor(card);
+    if (!outputAnchor) return;
+
+    setConnectionDraft({
+      fromId: cardId,
+      currentX: outputAnchor.x,
+      currentY: outputAnchor.y,
+    });
+    setConnectionTargetId(null);
+  }, [cards, getCardOutputAnchor]);
+
+  const findConnectionTarget = useCallback((pointerX: number, pointerY: number, fromId: string) => {
+    let closestTargetId: string | null = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    cards.forEach((card) => {
+      if (card.id === fromId) {
+        return;
+      }
+
+      const inputAnchor = getCardInputAnchor(card);
+      if (!inputAnchor) {
+        return;
+      }
+
+      const distance = Math.hypot(inputAnchor.x - pointerX, inputAnchor.y - pointerY);
+      if (distance <= 28 && distance < closestDistance) {
+        closestDistance = distance;
+        closestTargetId = card.id;
+      }
+    });
+
+    return closestTargetId;
+  }, [cards, getCardInputAnchor]);
+
+  useEffect(() => {
+    if (!connectionDraft) {
+      return;
+    }
+
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      setConnectionDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentX: e.clientX,
+              currentY: e.clientY,
+            }
+          : prev
+      );
+      setConnectionTargetId(findConnectionTarget(e.clientX, e.clientY, connectionDraft.fromId));
+    };
+
+    const handleGlobalMouseUp = (e: MouseEvent) => {
+      const targetId = findConnectionTarget(e.clientX, e.clientY, connectionDraft.fromId);
+      if (targetId) {
+        onAddConnection?.(connectionDraft.fromId, targetId);
+      }
+      setConnectionDraft(null);
+      setConnectionTargetId(null);
+    };
+
+    document.addEventListener("mousemove", handleGlobalMouseMove);
+    document.addEventListener("mouseup", handleGlobalMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleGlobalMouseMove);
+      document.removeEventListener("mouseup", handleGlobalMouseUp);
+    };
+  }, [connectionDraft, findConnectionTarget, onAddConnection]);
 
   // 计算连接线的起点和终点
   const getConnectionLine = (connection: Connection) => {
@@ -434,6 +566,15 @@ export function CanvasContainer({
     return `M ${fromX} ${fromY} C ${fromX + controlOffset} ${fromY}, ${toX - controlOffset} ${toY}, ${toX} ${toY}`;
   };
 
+  const draftSourceCard = connectionDraft
+    ? cards.find((card) => card.id === connectionDraft.fromId) ?? null
+    : null;
+  const draftSourceAnchor = draftSourceCard ? getCardOutputAnchor(draftSourceCard) : null;
+  const draftTargetCard = connectionTargetId
+    ? cards.find((card) => card.id === connectionTargetId) ?? null
+    : null;
+  const draftTargetAnchor = draftTargetCard ? getCardInputAnchor(draftTargetCard) : null;
+
   return (
     <>
       {/* 无限画布背景层 - 使用 background-position 实现无限滚动 */}
@@ -457,7 +598,7 @@ export function CanvasContainer({
             e.target instanceof Element &&
             !e.target.closest("[data-card]")
           ) {
-            // 取消聚焦逻辑由父组件处理
+            onCanvasBlur?.();
           }
         }}
       />
@@ -477,6 +618,14 @@ export function CanvasContainer({
                 {/* 贝塞尔曲线 */}
                 <path
                   data-connection={`${connection.fromId}-${connection.toId}`}
+                  ref={(node) => {
+                    const key = `${connection.fromId}-${connection.toId}`;
+                    if (node) {
+                      connectionPathRefs.current.set(key, node);
+                    } else {
+                      connectionPathRefs.current.delete(key);
+                    }
+                  }}
                   d={path}
                   fill="none"
                   stroke="#52525b"
@@ -486,6 +635,49 @@ export function CanvasContainer({
               </g>
             );
           })}
+
+          {connectionDraft && draftSourceAnchor && (
+            <g>
+              <path
+                d={generateBezierPath(
+                  draftSourceAnchor.x,
+                  draftSourceAnchor.y,
+                  draftTargetAnchor?.x ?? connectionDraft.currentX,
+                  draftTargetAnchor?.y ?? connectionDraft.currentY
+                )}
+                fill="none"
+                stroke={draftTargetAnchor ? "#60a5fa" : "#71717a"}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray="7 7"
+              />
+
+              {cards.map((card) => {
+                if (card.id === connectionDraft.fromId) {
+                  return null;
+                }
+
+                const inputAnchor = getCardInputAnchor(card);
+                if (!inputAnchor) {
+                  return null;
+                }
+
+                const isActiveTarget = connectionTargetId === card.id;
+                return (
+                  <circle
+                    key={`connection-target-${card.id}`}
+                    cx={inputAnchor.x}
+                    cy={inputAnchor.y}
+                    r={isActiveTarget ? 7 : 5}
+                    fill={isActiveTarget ? "#60a5fa" : "#3f3f46"}
+                    stroke={isActiveTarget ? "#dbeafe" : "#18181b"}
+                    strokeWidth={isActiveTarget ? 2 : 1.5}
+                    opacity={isActiveTarget ? 1 : 0.7}
+                  />
+                );
+              })}
+            </g>
+          )}
         </svg>
 
         {cards.map((card) => {
@@ -497,6 +689,13 @@ export function CanvasContainer({
                 data-card
                 data-card-id={card.id}
                 className="pointer-events-auto"
+                ref={(node) => {
+                  if (node) {
+                    cardElementRefs.current.set(card.id, node);
+                  } else {
+                    cardElementRefs.current.delete(card.id);
+                  }
+                }}
                 style={{
                   position: "absolute",
                   left: offset.x + card.position.x,
@@ -531,6 +730,13 @@ export function CanvasContainer({
                 data-card
                 data-card-id={card.id}
                 className="pointer-events-auto"
+                ref={(node) => {
+                  if (node) {
+                    cardElementRefs.current.set(card.id, node);
+                  } else {
+                    cardElementRefs.current.delete(card.id);
+                  }
+                }}
                 style={{
                   position: "absolute",
                   left: offset.x + card.position.x,
@@ -545,6 +751,7 @@ export function CanvasContainer({
                   onDataChange={(data) => onCardDataChange?.(card.id, data)}
                   isFocused={focusedCardId === card.id}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
+                  onConnectionDragStart={handleConnectionDragStart}
                   isGenerating={generatingCards.has(card.id)}
                   onGenerate={onGenerate}
                 />
@@ -560,6 +767,13 @@ export function CanvasContainer({
                 data-card
                 data-card-id={card.id}
                 className="pointer-events-auto"
+                ref={(node) => {
+                  if (node) {
+                    cardElementRefs.current.set(card.id, node);
+                  } else {
+                    cardElementRefs.current.delete(card.id);
+                  }
+                }}
                 style={{
                   position: "absolute",
                   left: offset.x + card.position.x,
@@ -586,6 +800,13 @@ export function CanvasContainer({
                 data-card
                 data-card-id={card.id}
                 className="pointer-events-auto"
+                ref={(node) => {
+                  if (node) {
+                    cardElementRefs.current.set(card.id, node);
+                  } else {
+                    cardElementRefs.current.delete(card.id);
+                  }
+                }}
                 style={{
                   position: "absolute",
                   left: offset.x + card.position.x,
@@ -613,6 +834,13 @@ export function CanvasContainer({
                 data-card
                 data-card-id={card.id}
                 className="pointer-events-auto"
+                ref={(node) => {
+                  if (node) {
+                    cardElementRefs.current.set(card.id, node);
+                  } else {
+                    cardElementRefs.current.delete(card.id);
+                  }
+                }}
                 style={{
                   position: "absolute",
                   left: offset.x + card.position.x,
@@ -629,6 +857,37 @@ export function CanvasContainer({
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   isGenerating={generatingCards.has(card.id)}
                   onGenerate={onGenerate}
+                />
+              </div>
+            );
+          }
+
+          if (card.type === "preview") {
+            return (
+              <div
+                key={card.id}
+                data-card
+                data-card-id={card.id}
+                className="pointer-events-auto"
+                ref={(node) => {
+                  if (node) {
+                    cardElementRefs.current.set(card.id, node);
+                  } else {
+                    cardElementRefs.current.delete(card.id);
+                  }
+                }}
+                style={{
+                  position: "absolute",
+                  left: offset.x + card.position.x,
+                  top: offset.y + card.position.y,
+                }}
+              >
+                <PreviewCard
+                  id={card.id}
+                  onRemove={onRemoveCard}
+                  onFocus={onCardFocus}
+                  isFocused={focusedCardId === card.id}
+                  onDragStart={(e) => handleCardDragStart(card.id, e)}
                 />
               </div>
             );
