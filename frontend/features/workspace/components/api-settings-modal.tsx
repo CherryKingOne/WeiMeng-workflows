@@ -27,8 +27,6 @@ interface ApiModelFormValue {
 }
 
 interface ApiSettingsFormState {
-  globalBaseUrl: string;
-  globalApiKey: string;
   models: Record<string, ApiModelFormValue>;
 }
 
@@ -114,17 +112,12 @@ const MODEL_DEFINITIONS: ApiModelDefinition[] = [
   },
 ];
 
-const DEFAULT_GLOBAL_BASE_URL = "https://ai.comfly.chat";
-const DEFAULT_GLOBAL_API_KEY = "";
-
 function getSettingKey(key: string) {
   return `api_settings.${key}`;
 }
 
 function buildDefaultFormState(): ApiSettingsFormState {
   return {
-    globalBaseUrl: DEFAULT_GLOBAL_BASE_URL,
-    globalApiKey: DEFAULT_GLOBAL_API_KEY,
     models: MODEL_DEFINITIONS.reduce<Record<string, ApiModelFormValue>>((acc, model) => {
       acc[model.key] = {
         modelId: model.defaultModelId,
@@ -174,7 +167,7 @@ function LinkIcon() {
 }
 
 export function ApiSettingsModal({ isOpen, onClose }: ApiSettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<ApiTab>("video");
+  const [activeTab, setActiveTab] = useState<ApiTab>("chat");
   const [formState, setFormState] = useState<ApiSettingsFormState>(() => buildDefaultFormState());
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -189,7 +182,7 @@ export function ApiSettingsModal({ isOpen, onClose }: ApiSettingsModalProps) {
     let cancelled = false;
 
     const loadSettings = async () => {
-      setActiveTab("video");
+      setActiveTab("chat");
       setMessage(null);
       setShowSecrets({});
 
@@ -206,8 +199,6 @@ export function ApiSettingsModal({ isOpen, onClose }: ApiSettingsModalProps) {
         const defaults = buildDefaultFormState();
 
         const nextState: ApiSettingsFormState = {
-          globalBaseUrl: settingsMap.get(getSettingKey("global_base_url")) ?? defaults.globalBaseUrl,
-          globalApiKey: settingsMap.get(getSettingKey("global_api_key")) ?? defaults.globalApiKey,
           models: { ...defaults.models },
         };
 
@@ -278,14 +269,6 @@ export function ApiSettingsModal({ isOpen, onClose }: ApiSettingsModalProps) {
 
     try {
       const updates = [
-        settingsService.update({
-          key: getSettingKey("global_base_url"),
-          value: formState.globalBaseUrl.trim(),
-        }),
-        settingsService.update({
-          key: getSettingKey("global_api_key"),
-          value: formState.globalApiKey.trim(),
-        }),
         ...MODEL_DEFINITIONS.flatMap((model) => {
           const value = formState.models[model.key];
           return [
@@ -388,51 +371,7 @@ export function ApiSettingsModal({ isOpen, onClose }: ApiSettingsModalProps) {
           })}
         </div>
 
-        <div className="flex-1 space-y-8 overflow-y-auto p-6">
-          <div className="flex flex-col gap-5">
-            <div>
-              <label className="mb-2 block text-[12px] uppercase tracking-[0.22em] text-zinc-500">
-                Global Base URL <span className="normal-case tracking-normal">(全局 API 地址)</span>
-              </label>
-              <input
-                type="text"
-                value={formState.globalBaseUrl}
-                onChange={(event) => {
-                  setFormState((prev) => ({ ...prev, globalBaseUrl: event.target.value }));
-                }}
-                disabled={isLoading || isSaving}
-                className="w-full rounded-lg border border-zinc-800 bg-[#18181a] px-4 py-2.5 text-[14px] text-zinc-200 outline-none transition-colors focus:border-zinc-600 disabled:cursor-not-allowed disabled:opacity-70"
-              />
-              <p className="mt-2 text-[12px] text-zinc-600">修改后可作为所有模型配置的默认 BASE URL。</p>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-[12px] uppercase tracking-[0.22em] text-zinc-500">
-                Global API KEY <span className="normal-case tracking-normal">(可选，全局默认 KEY)</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showSecrets.global ? "text" : "password"}
-                  value={formState.globalApiKey}
-                  onChange={(event) => {
-                    setFormState((prev) => ({ ...prev, globalApiKey: event.target.value }));
-                  }}
-                  disabled={isLoading || isSaving}
-                  placeholder="sk-..."
-                  className="h-[42px] w-full rounded-lg border border-zinc-800 bg-[#18181a] pl-4 pr-12 text-[16px] leading-none tracking-[0.18em] text-zinc-300 outline-none transition-colors focus:border-zinc-600 disabled:cursor-not-allowed disabled:opacity-70"
-                />
-                <button
-                  type="button"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors hover:text-zinc-300"
-                  onClick={() => toggleSecretVisibility("global")}
-                  aria-label={showSecrets.global ? "隐藏全局 API Key" : "显示全局 API Key"}
-                >
-                  <EyeIcon visible={Boolean(showSecrets.global)} />
-                </button>
-              </div>
-            </div>
-          </div>
-
+        <div className="flex-1 overflow-y-auto p-6">
           <div className="flex flex-col gap-4">
             {visibleModels.length > 0 ? (
               visibleModels.map((model) => {
