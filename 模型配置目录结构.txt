@@ -1,0 +1,153 @@
+结合你当前的目录结构（标准的领域驱动设计/整洁架构），并且为了满足你提到的 **“一个模型一个文件”**、**“通过 JSON 注册表管理”** 以及 **“独立请求逻辑以方便后期特殊维护”** 的需求，我建议在 `modules` 下新增一个 `models_config`（模型配置）模块。
+
+具体的大模型对接逻辑属于**基础设施层（Infrastructure）**，因此我们将 `Chat`、`Image`、`Video` 三个目录放在 `infrastructure/providers` 之下。
+
+以下是设计好的目录结构和对应的文件代码示例：
+
+### 1. 新增的目录结构
+
+在 `backend/modules/` 目录下，新增 `models_config` 模块：
+
+```text
+backend/
+├── modules/
+│   ├── ... (原有的 nodes_market, settings, workflow_engine 等)
+│   └── models_config/                  <-- 新增：模型配置模块
+│       ├── __init__.py
+│       ├── application/                <-- 应用层：处理业务用例(如获取模型列表、路由调用)
+│       │   ├── __init__.py
+│       │   └── use_cases.py
+│       ├── domain/                     <-- 领域层：模型实体和接口定义
+│       │   ├── __init__.py
+│       │   └── entities.py
+│       ├── presentation/               <-- 表现层：IPC 路由和前端交互
+│       │   ├── __init__.py
+│       │   └── ipc_handlers.py
+│       └── infrastructure/             <-- 基础设施层：实际对接各个大模型
+│           ├── __init__.py
+│           └── providers/              <-- ★ 核心：按类型分类的提供商目录
+│               ├── chat/               <-- Chat 文本模型
+│               │   ├── __init__.py
+│               │   ├── chat.json       <-- Chat 模型注册表
+│               │   ├── deepseek_chat.py<-- DeepSeek-Chat 模型文件
+│               │   ├── gpt_4o.py       <-- GPT-4o 模型文件
+│               │   └── gpt_5_4.py      <-- GPT-5.4 模型文件
+│               ├── image/              <-- Image 图像模型
+│               │   ├── __init__.py
+│               │   ├── image.json      <-- Image 模型注册表
+│               │   └── dall_e_3.py     <-- DALL-E 3 模型文件
+│               └── video/              <-- Video 视频模型
+│                   ├── __init__.py
+│                   ├── video.json      <-- Video 模型注册表
+│                   └── sora_1_0.py     <-- Sora 模型文件
+```
+
+---
+
+### 2. 文件内容设计示例
+
+#### A. 注册表文件：`chat.json`
+放置路径：`modules/models_config/infrastructure/providers/chat/chat.json`
+作用：应用层启动时读取此文件，将模型展示给前端。如果不在这里注册，即使有 `.py` 文件也不生效。
+
+```json
+{
+  "category": "chat",
+  "models": [
+    {
+      "model_id": "deepseek-chat",
+      "display_name": "DeepSeek Chat",
+      "provider": "DeepSeek",
+      "module_name": "deepseek_chat",
+      "is_active": true
+    },
+    {
+      "model_id": "gpt-4o",
+      "display_name": "GPT-4o",
+      "provider": "OpenAI",
+      "module_name": "gpt_4o",
+      "is_active": true
+    },
+    {
+      "model_id": "gpt-5.4",
+      "display_name": "GPT-5.4",
+      "provider": "OpenAI",
+      "module_name": "gpt_5_4",
+      "is_active": true
+    }
+  ]
+}
+```
+*(注：`image.json` 和 `video.json` 结构与此类似)*
+
+#### B. 模型请求文件：`deepseek_chat.py`
+放置路径：`modules/models_config/infrastructure/providers/chat/deepseek_chat.py`
+说明：为了在后端中被调用（而不是一导入就执行），你需要把请求包装在一个异步函数中。由于 DeepSeek 兼容 OpenAI API，我们可以直接使用你提供的 `AsyncOpenAI` 模板，只需修改 `base_url`。
+
+```python
+import os
+from openai import DefaultAioHttpClient
+from openai import AsyncOpenAI
+
+# 定义一个统一的调用入口函数，例如 generate_response
+async def generate_response(messages: list, api_key: str = None) -> str:
+    """
+    DeepSeek Chat 模型的专属请求逻辑
+    """
+    # 如果没有传入 api_key，则从环境变量获取
+    key = api_key or os.environ.get("DEEPSEEK_API_KEY")
+    
+    # 因为单独成文件，如果未来 deepseek 需要特殊的 headers 或参数，只改这里，不影响 GPT
+    async with AsyncOpenAI(
+        api_key=key,
+        base_url="https://api.deepseek.com", # DeepSeek 兼容接口地址
+        http_client=DefaultAioHttpClient(),
+    ) as client:
+        chat_completion = await client.chat.completions.create(
+            messages=messages,
+            model="deepseek-chat",
+            # 如果 DeepSeek 有独特的参数（如 temperature 限制、top_p 等），直接在此处硬编码或处理
+        )
+        
+    return chat_completion.choices[0].message.content
+```
+
+#### C. 模型请求文件：`gpt_5_4.py`
+放置路径：`modules/models_config/infrastructure/providers/chat/gpt_5_4.py`
+
+```python
+import os
+from openai import DefaultAioHttpClient
+from openai import AsyncOpenAI
+
+async def generate_response(messages: list, api_key: str = None) -> str:
+    """
+    GPT-5.4 模型的专属请求逻辑
+    """
+    key = api_key or os.environ.get("OPENAI_API_KEY")
+    
+    async with AsyncOpenAI(
+        api_key=key,
+        http_client=DefaultAioHttpClient(),
+    ) as client:
+        chat_completion = await client.chat.completions.create(
+            messages=messages,
+            model="gpt-5.4",
+        )
+        
+    return chat_completion.choices[0].message.content
+```
+
+---
+
+### 3. 架构设计优势说明
+
+你的思路（**一个模型一个文件，放弃高度抽象的通用类**）在实际的 AI 业务中非常实用，尤其适合目前的 AI 生态。这种目录结构有以下好处：
+
+1. **绝对隔离（符合开闭原则）：** 当 OpenAI 发布 `gpt-5.4` 时，你只需要新增一个 `gpt_5_4.py` 并在 `chat.json` 加一行，**完全不需要修改旧代码**。
+2. **特殊情况处理极度方便：** 
+    * 比如某一天某个国产大模型虽然号称兼容 OpenAI，但它不支持 `system` 角色，必须把 `system` 拼接进 `user`。
+    * 比如某个模型必须要传 `stream_options` 才能正常工作。
+    * 因为你是一个模型一个文件，你可以在对应的 `.py` 文件里随意用 `if/else` 甚至重写 `messages` 列表，而不会搞脏其他正常的 OpenAI 模型代码。
+3. **动态加载（结合 JSON）：** 
+    后端的应用层（`use_cases.py`）可以这样做：前端传来请求 `{"model_id": "deepseek-chat"}`，后端去查 `chat.json` 发现对应的 `module_name` 是 `deepseek_chat`，然后通过 Python 的 `importlib` 动态导入该文件，执行里面的 `generate_response` 方法。这使得架构像插件系统一样灵活。
