@@ -3,6 +3,16 @@
 /**
  * 图片对比卡片组件
  *
+ * ============================================================================
+ * 【卡片连接点规范】
+ * ============================================================================
+ * 所有工作流卡片组件默认应包含左侧输入连接点。
+ *
+ * 【特殊说明】
+ * - 通过画布右键菜单“对比”创建的图片对比卡片，是当前唯一一个只保留左侧输入连接点的卡片
+ * - 该卡片不渲染右侧输出连接按钮，因为它只负责接收图片并完成对比展示
+ * ============================================================================
+ *
  * 支持两种图片的滑动对比，中间有可拖拽的分割线
  */
 
@@ -19,9 +29,7 @@ interface CompareCardProps {
   onRemove?: (id: string) => void;
   onFocus?: (id: string) => void;
   isFocused?: boolean;
-  hasOutgoingConnection?: boolean;
   onDragStart?: (e: React.MouseEvent) => void;
-  onConnectionDragStart?: (cardId: string, e: React.MouseEvent) => void;
   data?: Record<string, unknown>;
   onDataChange?: (data: Record<string, unknown>) => void;
 }
@@ -73,22 +81,12 @@ function SliderHandleIcon({ className }: { className?: string }) {
   );
 }
 
-function PlusIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 6v12m6-6H6" />
-    </svg>
-  );
-}
-
 export function CompareCard({
   id,
   onRemove,
   onFocus,
   isFocused = false,
-  hasOutgoingConnection = false,
   onDragStart,
-  onConnectionDragStart,
   data,
   onDataChange,
 }: CompareCardProps) {
@@ -164,15 +162,6 @@ export function CompareCard({
     [id, onRemove]
   );
 
-  const handleConnectionHandleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onFocus?.(id);
-      onConnectionDragStart?.(id, e);
-    },
-    [id, onConnectionDragStart, onFocus]
-  );
-
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if ((e.target as HTMLElement).closest("[data-slider]")) {
@@ -183,11 +172,6 @@ export function CompareCard({
     [onDragStart]
   );
 
-  const stopPropagation = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-  }, []);
-
-  const showConnectionHandle = hasImages && (isHovered || isFocused);
   const connectionDotColor = hasImages ? "bg-white" : "bg-zinc-600";
 
   // 渲染空状态
@@ -349,7 +333,10 @@ export function CompareCard({
         onClick={handleCardClick}
       >
         {/* 左侧输入连接点 */}
-        <div className={`absolute top-1/2 -left-[6px] z-20 -translate-y-1/2 h-[12px] w-[12px] rounded-full border border-[#18181b] ${connectionDotColor}`} />
+        <div
+          data-connection-anchor="input"
+          className={`absolute top-1/2 -left-[6px] z-20 -translate-y-1/2 h-[12px] w-[12px] rounded-full border border-[#18181b] ${connectionDotColor}`}
+        />
 
         {/* 删除按钮 */}
         {(isHovered || isFocused) && (
@@ -360,19 +347,6 @@ export function CompareCard({
             aria-label="删除对比节点"
           >
             <CloseIcon className="h-3.5 w-3.5" />
-          </button>
-        )}
-
-        {/* 右侧连接点 */}
-        {showConnectionHandle && (
-          <button
-            type="button"
-            className="absolute -right-8 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#262626] bg-[#171717] text-gray-400 shadow-lg transition hover:text-white"
-            onMouseDown={handleConnectionHandleMouseDown}
-            onClick={stopPropagation}
-            aria-label="添加连接"
-          >
-            <PlusIcon className="h-6 w-6" />
           </button>
         )}
 

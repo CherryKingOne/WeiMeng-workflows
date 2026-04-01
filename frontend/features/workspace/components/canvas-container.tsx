@@ -276,6 +276,24 @@ export function CanvasContainer({
     };
   }, [getCardDimensions, offset.x, offset.y, scale]);
 
+  const getRenderedAnchorPosition = useCallback((cardId: string, side: "input" | "output") => {
+    const cardElement = cardElementRefs.current.get(cardId);
+    if (!cardElement) {
+      return null;
+    }
+
+    const anchorElement = cardElement.querySelector<HTMLElement>(`[data-connection-anchor="${side}"]`);
+    if (!anchorElement) {
+      return null;
+    }
+
+    const rect = anchorElement.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+  }, []);
+
   // 更新画布位置
   const updateCanvasPosition = useCallback((newOffset: { x: number; y: number }) => {
     setOffset(newOffset);
@@ -364,16 +382,20 @@ export function CanvasContainer({
       
       if (!otherCard || !currentCard) return;
       
-      const movedCardAnchor = getAnchorPosition(
-        currentCard,
-        { x: newX, y: newY },
-        isFromCard ? "output" : "input"
-      );
-      const otherCardAnchor = getAnchorPosition(
-        otherCard,
-        otherCard.position,
-        isFromCard ? "input" : "output"
-      );
+      const movedCardAnchor =
+        getRenderedAnchorPosition(currentCard.id, isFromCard ? "output" : "input") ??
+        getAnchorPosition(
+          currentCard,
+          { x: newX, y: newY },
+          isFromCard ? "output" : "input"
+        );
+      const otherCardAnchor =
+        getRenderedAnchorPosition(otherCard.id, isFromCard ? "input" : "output") ??
+        getAnchorPosition(
+          otherCard,
+          otherCard.position,
+          isFromCard ? "input" : "output"
+        );
 
       if (!movedCardAnchor || !otherCardAnchor) {
         return;
@@ -396,7 +418,7 @@ export function CanvasContainer({
         pathElement.setAttribute("d", path);
       }
     });
-  }, [connections, cards, getAnchorPosition]);
+  }, [connections, cards, getAnchorPosition, getRenderedAnchorPosition]);
 
   // 处理卡片拖拽移动 - 使用全局事件和 requestAnimationFrame
   useEffect(() => {
@@ -472,146 +494,156 @@ export function CanvasContainer({
     };
   }, [offset, onCardMove, scale, updateConnectionsForCard]);
 
-  const getCardOutputAnchor = useCallback((card: CardItem) => {
+  const getCardOutputAnchor = useCallback((card: CardItem, position: { x: number; y: number } = card.position) => {
+    const renderedAnchor = getRenderedAnchorPosition(card.id, "output");
+    if (renderedAnchor) {
+      return renderedAnchor;
+    }
+
     if (card.type === "image") {
       return {
-        x: offset.x + (card.position.x + IMAGE_INPUT_CARD_WIDTH) * scale,
-        y: offset.y + (card.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2) * scale,
+        x: offset.x + (position.x + IMAGE_INPUT_CARD_WIDTH) * scale,
+        y: offset.y + (position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "image-generation") {
       return {
-        x: offset.x + (card.position.x + IMAGE_GENERATION_CARD_WIDTH) * scale,
-        y: offset.y + (card.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2) * scale,
+        x: offset.x + (position.x + IMAGE_GENERATION_CARD_WIDTH) * scale,
+        y: offset.y + (position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "image-result") {
       return {
-        x: offset.x + (card.position.x + IMAGE_RESULT_CARD_WIDTH) * scale,
-        y: offset.y + (card.position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2) * scale,
+        x: offset.x + (position.x + IMAGE_RESULT_CARD_WIDTH) * scale,
+        y: offset.y + (position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "video-generation") {
       return {
-        x: offset.x + (card.position.x + VIDEO_GENERATION_CARD_WIDTH) * scale,
-        y: offset.y + (card.position.y + VIDEO_GENERATION_CARD_HEADER_OFFSET + VIDEO_GENERATION_CARD_HEIGHT / 2) * scale,
+        x: offset.x + (position.x + VIDEO_GENERATION_CARD_WIDTH) * scale,
+        y: offset.y + (position.y + VIDEO_GENERATION_CARD_HEADER_OFFSET + VIDEO_GENERATION_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "video-result") {
       return {
-        x: offset.x + (card.position.x + VIDEO_RESULT_CARD_WIDTH) * scale,
-        y: offset.y + (card.position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2) * scale,
+        x: offset.x + (position.x + VIDEO_RESULT_CARD_WIDTH) * scale,
+        y: offset.y + (position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "video-frame") {
       return {
-        x: offset.x + (card.position.x + VIDEO_FRAME_CARD_WIDTH) * scale,
-        y: offset.y + (card.position.y + VIDEO_FRAME_CARD_HEADER_OFFSET + VIDEO_FRAME_CARD_HEIGHT / 2) * scale,
+        x: offset.x + (position.x + VIDEO_FRAME_CARD_WIDTH) * scale,
+        y: offset.y + (position.y + VIDEO_FRAME_CARD_HEADER_OFFSET + VIDEO_FRAME_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "text") {
       return {
-        x: offset.x + (card.position.x + TEXT_CARD_WIDTH) * scale,
-        y: offset.y + (card.position.y + TEXT_CARD_HEADER_OFFSET + TEXT_CARD_HEIGHT / 2) * scale,
+        x: offset.x + (position.x + TEXT_CARD_WIDTH) * scale,
+        y: offset.y + (position.y + TEXT_CARD_HEADER_OFFSET + TEXT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "storyboard-form") {
       return {
-        x: offset.x + (card.position.x + STORYBOARD_CARD_WIDTH) * scale,
-        y: offset.y + (card.position.y + STORYBOARD_CARD_HEADER_OFFSET + STORYBOARD_CARD_HEIGHT / 2) * scale,
+        x: offset.x + (position.x + STORYBOARD_CARD_WIDTH) * scale,
+        y: offset.y + (position.y + STORYBOARD_CARD_HEADER_OFFSET + STORYBOARD_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "compare") {
       return {
-        x: offset.x + (card.position.x + COMPARE_CARD_WIDTH) * scale,
-        y: offset.y + (card.position.y + COMPARE_CARD_HEADER_OFFSET + COMPARE_CARD_HEIGHT / 2) * scale,
+        x: offset.x + (position.x + COMPARE_CARD_WIDTH) * scale,
+        y: offset.y + (position.y + COMPARE_CARD_HEADER_OFFSET + COMPARE_CARD_HEIGHT / 2) * scale,
       };
     }
 
     return null;
-  }, [offset.x, offset.y, scale]);
+  }, [getRenderedAnchorPosition, offset.x, offset.y, scale]);
 
-  const getCardInputAnchor = useCallback((card: CardItem) => {
+  const getCardInputAnchor = useCallback((card: CardItem, position: { x: number; y: number } = card.position) => {
+    const renderedAnchor = getRenderedAnchorPosition(card.id, "input");
+    if (renderedAnchor) {
+      return renderedAnchor;
+    }
+
     if (card.type === "image") {
       return {
-        x: offset.x + card.position.x * scale,
-        y: offset.y + (card.position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2) * scale,
+        x: offset.x + position.x * scale,
+        y: offset.y + (position.y + IMAGE_INPUT_CARD_HEADER_OFFSET + IMAGE_INPUT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "image-generation") {
       return {
-        x: offset.x + card.position.x * scale,
-        y: offset.y + (card.position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2) * scale,
+        x: offset.x + position.x * scale,
+        y: offset.y + (position.y + IMAGE_GENERATION_CARD_HEADER_OFFSET + IMAGE_GENERATION_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "image-result") {
       return {
-        x: offset.x + card.position.x * scale,
-        y: offset.y + (card.position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2) * scale,
+        x: offset.x + position.x * scale,
+        y: offset.y + (position.y + IMAGE_RESULT_CARD_HEADER_OFFSET + IMAGE_RESULT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "video-generation") {
       return {
-        x: offset.x + card.position.x * scale,
-        y: offset.y + (card.position.y + VIDEO_GENERATION_CARD_HEADER_OFFSET + VIDEO_GENERATION_CARD_HEIGHT / 2) * scale,
+        x: offset.x + position.x * scale,
+        y: offset.y + (position.y + VIDEO_GENERATION_CARD_HEADER_OFFSET + VIDEO_GENERATION_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "video-result") {
       return {
-        x: offset.x + card.position.x * scale,
-        y: offset.y + (card.position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2) * scale,
+        x: offset.x + position.x * scale,
+        y: offset.y + (position.y + VIDEO_RESULT_CARD_HEADER_OFFSET + VIDEO_RESULT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "video-frame") {
       return {
-        x: offset.x + card.position.x * scale,
-        y: offset.y + (card.position.y + VIDEO_FRAME_CARD_HEADER_OFFSET + VIDEO_FRAME_CARD_HEIGHT / 2) * scale,
+        x: offset.x + position.x * scale,
+        y: offset.y + (position.y + VIDEO_FRAME_CARD_HEADER_OFFSET + VIDEO_FRAME_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "preview") {
       return {
-        x: offset.x + card.position.x * scale,
-        y: offset.y + (card.position.y + PREVIEW_CARD_HEADER_OFFSET + PREVIEW_CARD_HEIGHT / 2) * scale,
+        x: offset.x + position.x * scale,
+        y: offset.y + (position.y + PREVIEW_CARD_HEADER_OFFSET + PREVIEW_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "storyboard-form") {
       return {
-        x: offset.x + card.position.x * scale,
-        y: offset.y + (card.position.y + STORYBOARD_CARD_HEADER_OFFSET + STORYBOARD_CARD_HEIGHT / 2) * scale,
+        x: offset.x + position.x * scale,
+        y: offset.y + (position.y + STORYBOARD_CARD_HEADER_OFFSET + STORYBOARD_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "text") {
       return {
-        x: offset.x + card.position.x * scale,
-        y: offset.y + (card.position.y + TEXT_CARD_HEADER_OFFSET + TEXT_CARD_HEIGHT / 2) * scale,
+        x: offset.x + position.x * scale,
+        y: offset.y + (position.y + TEXT_CARD_HEADER_OFFSET + TEXT_CARD_HEIGHT / 2) * scale,
       };
     }
 
     if (card.type === "compare") {
       return {
-        x: offset.x + card.position.x * scale,
-        y: offset.y + (card.position.y + COMPARE_CARD_HEADER_OFFSET + COMPARE_CARD_HEIGHT / 2) * scale,
+        x: offset.x + position.x * scale,
+        y: offset.y + (position.y + COMPARE_CARD_HEADER_OFFSET + COMPARE_CARD_HEIGHT / 2) * scale,
       };
     }
 
     return null;
-  }, [offset.x, offset.y, scale]);
+  }, [getRenderedAnchorPosition, offset.x, offset.y, scale]);
 
   const handleConnectionDragStart = useCallback((cardId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -1217,9 +1249,7 @@ export function CanvasContainer({
                   onFocus={onCardFocus}
                   onDataChange={(data) => onCardDataChange?.(card.id, data)}
                   isFocused={focusedCardId === card.id}
-                  hasOutgoingConnection={connections.some((connection) => connection.fromId === card.id)}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
-                  onConnectionDragStart={handleConnectionDragStart}
                 />
               </div>
             );

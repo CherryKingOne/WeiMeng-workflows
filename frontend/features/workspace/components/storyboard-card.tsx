@@ -642,7 +642,12 @@ export function StoryboardCard({
   };
 
   return (
-    <div className="cursor-grab" onMouseDown={handleMouseDown}>
+    <div
+      className="cursor-grab"
+      onMouseDown={handleMouseDown}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {/* 标签 */}
       <EditableCardName
         value={cardName}
@@ -652,7 +657,7 @@ export function StoryboardCard({
         className="mb-2 bg-transparent text-[12px] text-neutral-400 outline-none"
       />
 
-      {/* 主卡片 */}
+        {/* 主卡片 */}
       <div
         ref={cardRef}
         className={`relative bg-[#171717] rounded-xl border shadow-2xl overflow-visible transition-all duration-150 ${
@@ -664,16 +669,17 @@ export function StoryboardCard({
           width: viewMode === "table" ? "1060px" : "820px",
         }}
         onClick={handleCardClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         {/* 左侧连接点 */}
-        <div className="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10" />
+        <div
+          data-connection-anchor="input"
+          className="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10"
+        />
 
         {/* 右上关闭按钮 - hover 时显示 */}
         <button
           className={`absolute -right-[12px] -top-[12px] w-[24px] h-[24px] bg-[#222] border border-[#3a3a3a] rounded-full flex items-center justify-center text-gray-400 z-20 hover:text-white hover:bg-[#333] transition-all duration-150 ${
-            isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+            isHovered || isFocused ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
           onClick={handleRemove}
         >
@@ -682,8 +688,9 @@ export function StoryboardCard({
 
         {/* 右侧输出连接点 - hover 时显示 */}
         <button
+          data-connection-anchor="output"
           className={`absolute -right-[18px] top-1/2 -translate-y-1/2 w-[36px] h-[36px] bg-[#111] border border-[#4a4a4a] rounded-full flex items-center justify-center text-white shadow-[0_0_10px_rgba(0,0,0,0.5)] z-20 hover:bg-[#1a1a1a] transition-all duration-150 ${
-            isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+            isHovered || isFocused ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
           onMouseDown={(e) => onConnectionDragStart?.(id, e)}
         >
