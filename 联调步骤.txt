@@ -1,3 +1,7 @@
+0.运行python
+cd /Users/edy/Documents/个人项目开发/WeiMeng-workflows/backend
+uv sync
+
 
 1. 安装 Electron 依赖
 cd /Users/edy/Documents/个人项目开发/WeiMeng-workflows/frontend
