@@ -35,7 +35,7 @@ response = requests.post(
     'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
     headers={
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer sk-0e97e20d9d5c478db13df5474bd49c15'
+        'Authorization': 'Bearer 5'
     },
     json=data
 )
