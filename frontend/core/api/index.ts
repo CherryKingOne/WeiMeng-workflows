@@ -135,5 +135,19 @@ export type {
   NodeDefinition,
 } from "./types";
 
+// Runtime Logs 运行日志服务
+export { runtimeLogService } from "./runtime-log-service";
+export type {
+  RuntimeLogEntry,
+  RuntimeLogListRequest,
+  RuntimeLogRecordRequest,
+  RuntimeLogClearResponse,
+  RuntimeLogEventMessage,
+  RuntimeLogLevel,
+  RuntimeLogCategory,
+  RuntimeLogEventType,
+  RuntimeRequestType,
+} from "./types";
+
 // 通用类型
 export type { IPCResponse } from "./types";

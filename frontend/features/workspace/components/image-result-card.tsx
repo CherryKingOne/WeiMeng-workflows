@@ -113,7 +113,7 @@ export function ImageResultCard({
             onGenerationComplete?.();
             return 100;
           }
-          return prev + 0.04; // 每80ms增加0.04%，动画更慢（约192秒完成）
+          return prev + 1.5; // 每80ms增加1.5%，约 5.3 秒完成
         });
       }, 80);
 

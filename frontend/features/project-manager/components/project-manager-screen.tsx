@@ -4,7 +4,7 @@ import { startTransition, useCallback, useEffect, useRef, useState, useMemo, typ
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { workflowService, type WorkflowSummary, type ProjectSummary } from "@/core/api";
+import { runtimeLogService, workflowService, type WorkflowSummary, type ProjectSummary } from "@/core/api";
 import { useTheme } from "@/features/theme/theme-context";
 
 const themeStyles: Record<"dark" | "light", CSSProperties> = {
@@ -41,6 +41,23 @@ export function ProjectManagerScreen() {
   const { theme, toggleTheme } = useTheme();
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const recordRuntimeLog = useCallback((payload: {
+    category: string;
+    event_type: string;
+    level: string;
+    message: string;
+    workflow_id?: string;
+    details?: Record<string, unknown>;
+  }) => {
+    if (!runtimeLogService.isAvailable()) {
+      return;
+    }
+
+    void runtimeLogService.record(payload).catch((error) => {
+      console.error("写入运行日志失败:", error);
+    });
+  }, []);
 
   // 只在客户端检查 bridge 可用性，避免 hydration mismatch
   const isBridgeAvailable = useMemo(() => {
@@ -128,12 +145,22 @@ export function ProjectManagerScreen() {
         name: "新工作流",
       });
       setWorkflows((prev) => [newWorkflow, ...prev]);
+      recordRuntimeLog({
+        category: "project",
+        event_type: "project_created",
+        level: "success",
+        message: `创建项目"${newWorkflow.name}"，项目ID: ${newWorkflow.workflow_id}`,
+        workflow_id: newWorkflow.workflow_id,
+        details: {
+          project_name: newWorkflow.name,
+        },
+      });
       openWorkspace(newWorkflow.workflow_id);
     } catch (error) {
       console.error("创建工作流失败:", error);
       openWorkspace();
     }
-  }, [openWorkspace]);
+  }, [isBridgeAvailable, openWorkspace, recordRuntimeLog]);
 
   /**
    * ============================================================
@@ -163,13 +190,24 @@ export function ProjectManagerScreen() {
    * ============================================================
    * 项目卡片点击编辑按钮后，输入新名称并保存
    */
-  const handleRenameWorkflow = useCallback((projectId: string, newName: string) => {
+  const handleRenameWorkflow = useCallback((projectId: string, newName: string, previousName: string) => {
     if (!newName || !newName.trim()) return;
 
     workflowService.update({
       workflow_id: projectId,
       name: newName.trim(),
     }).then(() => {
+      recordRuntimeLog({
+        category: "project",
+        event_type: "project_renamed",
+        level: "info",
+        message: `修改项目名称: "${previousName}" -> "${newName.trim()}"，项目ID: ${projectId}`,
+        workflow_id: projectId,
+        details: {
+          previous_name: previousName,
+          current_name: newName.trim(),
+        },
+      });
       setWorkflows((prev) =>
         prev.map((wf) =>
           wf.workflow_id === projectId
@@ -180,7 +218,7 @@ export function ProjectManagerScreen() {
     }).catch((error) => {
       console.error("重命名工作流失败:", error);
     });
-  }, [workflows]);
+  }, [recordRuntimeLog]);
 
   /**
    * ============================================================
@@ -392,7 +430,7 @@ function ProjectCard({
   project: ProjectSummary;
   onOpen: () => void;
   onDelete?: (projectId: string, newName: string) => void;
-  onRename?: (projectId: string, newName: string) => void;
+  onRename?: (projectId: string, newName: string, previousName: string) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(project.name);
@@ -417,7 +455,7 @@ function ProjectCard({
   const handleSave = () => {
     const trimmedName = editName.trim();
     if (trimmedName && trimmedName !== project.name) {
-      onRename?.(project.id, trimmedName);
+      onRename?.(project.id, trimmedName, project.name);
     }
     setIsEditing(false);
   };

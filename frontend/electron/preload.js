@@ -104,6 +104,19 @@ contextBridge.exposeInMainWorld("workflowsDesktop", {
   revokeBlobUrl(blobUrl) {
     ipcRenderer.send("file:revokeBlobUrl", blobUrl);
   },
+
+  /**
+   * 监听运行日志事件
+   * @param {(event: {event: string, payload: unknown}) => void} callback
+   * @returns {() => void}
+   */
+  onRuntimeLogEvent(callback) {
+    const listener = (_, payload) => callback(payload);
+    ipcRenderer.on("runtime-logs:event", listener);
+    return () => {
+      ipcRenderer.removeListener("runtime-logs:event", listener);
+    };
+  },
 });
 
 console.log("[Preload] workflowsDesktop API 已注入");

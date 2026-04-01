@@ -266,6 +266,88 @@ export interface ModelsConfigTestConnectionResponse {
 
 /**
  * ============================================================
+ * Runtime Logs 模块 - 运行日志相关类型定义
+ * 后端 IPC Channels:
+ * - runtime_logs.list
+ * - runtime_logs.record
+ * - runtime_logs.clear
+ * ============================================================
+ */
+
+export type RuntimeLogLevel = "info" | "success" | "warning" | "error" | "loading";
+
+export type RuntimeLogCategory = "lifecycle" | "project" | "card" | "request" | "system";
+
+export type RuntimeLogEventType =
+  | "startup"
+  | "shutdown"
+  | "project_created"
+  | "project_entered"
+  | "project_renamed"
+  | "project_exited"
+  | "card_added"
+  | "request_started"
+  | "request_processing"
+  | "request_completed"
+  | "generic";
+
+export type RuntimeRequestType =
+  | "text_to_image"
+  | "image_to_image"
+  | "text_to_video"
+  | "image_to_video";
+
+export interface RuntimeLogEntry {
+  log_id: string;
+  created_at: string;
+  category: RuntimeLogCategory | string;
+  event_type: RuntimeLogEventType | string;
+  level: RuntimeLogLevel | string;
+  message: string;
+  workflow_id?: string | null;
+  card_id?: string | null;
+  card_name?: string | null;
+  request_id?: string | null;
+  request_type?: RuntimeRequestType | string | null;
+  model_name?: string | null;
+  display: boolean;
+  details?: Record<string, unknown>;
+}
+
+export interface RuntimeLogListRequest {
+  limit?: number;
+  visible_only?: boolean;
+}
+
+export interface RuntimeLogRecordRequest {
+  category: RuntimeLogCategory | string;
+  event_type: RuntimeLogEventType | string;
+  level: RuntimeLogLevel | string;
+  message: string;
+  workflow_id?: string;
+  card_id?: string;
+  card_name?: string;
+  request_id?: string;
+  request_type?: RuntimeRequestType | string;
+  model_name?: string;
+  display?: boolean;
+  details?: Record<string, unknown>;
+}
+
+export interface RuntimeLogClearResponse {
+  cleared_count: number;
+}
+
+export interface RuntimeLogEventMessage {
+  event: "runtime_logs.appended" | "runtime_logs.cleared";
+  payload: {
+    entry?: RuntimeLogEntry;
+    cleared_count?: number;
+  };
+}
+
+/**
+ * ============================================================
  * Nodes Market 模块 - 节点市场相关类型定义
  * 后端 IPC Channels:
  * - nodes_market.list: 获取可用节点列表

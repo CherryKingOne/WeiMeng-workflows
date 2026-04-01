@@ -11,6 +11,7 @@ export interface WorkflowsDesktopBridge {
   selectFile(title?: string, filters?: Array<{ name: string; extensions: string[] }>): Promise<{ canceled: boolean; filePaths?: string[] }>;
   getLocalFileUrl(filePath: string): Promise<LocalFileResult | { error: string }>;
   revokeBlobUrl(blobUrl: string): void;
+  onRuntimeLogEvent?(callback: (event: { event: string; payload: unknown }) => void): () => void;
 }
 
 declare global {

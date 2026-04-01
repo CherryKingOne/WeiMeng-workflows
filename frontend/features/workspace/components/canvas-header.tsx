@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { useTheme } from "@/features/theme/theme-context";
 import { LogModal } from "./log-modal";
 
@@ -13,6 +12,7 @@ interface CanvasHeaderProps {
   onStorageClick?: () => void;
   onApiSettingsClick?: () => void;
   onLogClick?: () => void;
+  onBackToProjects?: () => void;
 }
 
 export function CanvasHeader({
@@ -22,6 +22,7 @@ export function CanvasHeader({
   onStorageClick,
   onApiSettingsClick,
   onLogClick,
+  onBackToProjects,
 }: CanvasHeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
@@ -111,8 +112,9 @@ export function CanvasHeader({
 
         {/* 中间信息栏 */}
         <div className="glass-panel shrink-0 px-4 py-2 rounded-full flex items-center space-x-3 text-sm pointer-events-auto mx-4">
-          <Link
-            href="/"
+          <button
+            type="button"
+            onClick={onBackToProjects}
             className="nav-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm"
           >
             <svg
@@ -129,7 +131,7 @@ export function CanvasHeader({
               ></path>
             </svg>
             <span>返回项目</span>
-          </Link>
+          </button>
           <span className="text-blue-400">@WeiMeng</span>
           <span className={isDark ? "text-gray-500" : "text-gray-400"}>|</span>
           <span className="text-purple-400">V.0.0.1</span>

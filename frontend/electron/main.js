@@ -37,6 +37,14 @@ let mainWindow = null;
 let pythonProcess = null;
 let pythonStdoutBuffer = "";
 
+function broadcastRuntimeLogEvent(eventMessage) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  mainWindow.webContents.send("runtime-logs:event", eventMessage);
+}
+
 /**
  * ============================================================
  * 启动 Python IPC 服务器
@@ -76,7 +84,9 @@ function startPythonBackend() {
       .forEach((line) => {
         try {
           const parsed = JSON.parse(line);
-          if (parsed.id !== undefined) {
+          if (parsed.event) {
+            handlePythonEvent(parsed);
+          } else if (parsed.id !== undefined) {
             handlePythonResponse(parsed);
           } else {
             console.log(`[Python] ${line}`);
@@ -189,6 +199,15 @@ function handlePythonResponse(response) {
       pending.resolve(response.result);
     }
   }
+}
+
+function handlePythonEvent(eventMessage) {
+  if (eventMessage.event === "runtime_logs.appended" || eventMessage.event === "runtime_logs.cleared") {
+    broadcastRuntimeLogEvent(eventMessage);
+    return;
+  }
+
+  console.log("[Python Event]", eventMessage);
 }
 
 /**

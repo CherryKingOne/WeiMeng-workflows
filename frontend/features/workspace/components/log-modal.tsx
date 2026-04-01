@@ -1,224 +1,294 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { runtimeLogService, type RuntimeLogEntry, type RuntimeRequestType } from "@/core/api";
 import { useTheme } from "@/features/theme/theme-context";
-
-interface LogEntry {
-  id: string;
-  time: string;
-  type: "info" | "success" | "warning" | "loading" | "system";
-  icon?: "terminal" | "shield" | "settings" | "database" | "box" | "check" | "loading";
-  message: string;
-  subInfo?: string;
-  progress?: number;
-}
 
 interface LogModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// 示例日志数据
-const sampleLogs: LogEntry[] = [
-  {
-    id: "1",
-    time: "17:36:51",
-    type: "system",
-    icon: "terminal",
-    message: "正在初始化云端沙箱...",
-  },
-  {
-    id: "2",
-    time: "17:36:51",
-    type: "success",
-    icon: "shield",
-    message: "认证通过。令牌: ****************",
-  },
-  {
-    id: "3",
-    time: "17:36:51",
-    type: "system",
-    icon: "settings",
-    message: "正在分配虚拟资源...",
-  },
-  {
-    id: "4",
-    time: "17:36:51",
-    type: "info",
-    subInfo: "vCPU: 4 核 | 内存: 8192 MB | GPU: N/A",
-    message: "",
-  },
-  {
-    id: "5",
-    time: "17:36:51",
-    type: "system",
-    icon: "database",
-    message: "正在配置安全网络策略...",
-  },
-  {
-    id: "6",
-    time: "17:36:52",
-    type: "system",
-    icon: "box",
-    message: "正在拉取运行环境: coze-code:1.0.0",
-  },
-  {
-    id: "7",
-    time: "17:36:52",
-    type: "info",
-    message: "下载中",
-    progress: 100,
-  },
-  {
-    id: "8",
-    time: "17:36:54",
-    type: "system",
-    icon: "database",
-    message: "正在挂载工作区卷 /workspace/projects...",
-  },
-  {
-    id: "9",
-    time: "17:36:54",
-    type: "info",
-    message: "正在启动沙箱代理...",
-  },
-  {
-    id: "10",
-    time: "17:36:54",
-    type: "success",
-    icon: "check",
-    message: "沙箱环境准备就绪。",
-  },
-];
+function formatLogTime(createdAt: string): string {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) {
+    return "--:--:--";
+  }
+
+  return date.toLocaleTimeString("zh-CN", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function getRequestTypeLabel(requestType?: string | null): string | null {
+  const labelMap: Record<RuntimeRequestType, string> = {
+    text_to_image: "文生图",
+    image_to_image: "图生图",
+    text_to_video: "文生视频",
+    image_to_video: "图生视频",
+  };
+
+  if (!requestType) {
+    return null;
+  }
+
+  return labelMap[requestType as RuntimeRequestType] ?? requestType;
+}
+
+function buildSubInfo(log: RuntimeLogEntry): string | null {
+  const segments: string[] = [];
+
+  if (log.workflow_id) {
+    segments.push(`项目ID: ${log.workflow_id}`);
+  }
+
+  if (log.card_id) {
+    segments.push(`卡片ID: ${log.card_id}`);
+  }
+
+  const requestTypeLabel = getRequestTypeLabel(log.request_type);
+  if (requestTypeLabel) {
+    segments.push(`请求类型: ${requestTypeLabel}`);
+  }
+
+  if (log.model_name) {
+    segments.push(`模型: ${log.model_name}`);
+  }
+
+  if (log.request_id) {
+    segments.push(`请求ID: ${log.request_id}`);
+  }
+
+  return segments.length > 0 ? segments.join(" | ") : null;
+}
+
+function buildSearchableText(log: RuntimeLogEntry): string {
+  return [
+    log.message,
+    log.workflow_id,
+    log.card_id,
+    log.card_name,
+    log.request_id,
+    log.request_type,
+    log.model_name,
+    JSON.stringify(log.details ?? {}),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function renderIcon(log: RuntimeLogEntry) {
+  if (log.event_type === "startup" || log.event_type === "shutdown") {
+    return <span className="text-amber-500 font-bold shrink-0">&gt;_</span>;
+  }
+
+  if (log.event_type === "request_processing") {
+    return (
+      <span className="text-sky-400 shrink-0">
+        <svg className="w-4 h-4 inline-block animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+      </span>
+    );
+  }
+
+  if (log.level === "success" || log.event_type === "request_completed") {
+    return (
+      <span className="text-emerald-500 shrink-0">
+        <svg className="w-[1em] h-[1em] inline-block mt-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </span>
+    );
+  }
+
+  if (log.category === "card") {
+    return (
+      <span className="text-violet-400 shrink-0">
+        <svg className="w-[1em] h-[1em] inline-block mt-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+      </span>
+    );
+  }
+
+  if (log.category === "project") {
+    return (
+      <span className="text-blue-400 shrink-0">
+        <svg className="w-[1em] h-[1em] inline-block mt-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7h5l2 2h11v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"></path>
+        </svg>
+      </span>
+    );
+  }
+
+  if (log.category === "request") {
+    return (
+      <span className="text-cyan-400 shrink-0">
+        <svg className="w-[1em] h-[1em] inline-block mt-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+        </svg>
+      </span>
+    );
+  }
+
+  if (log.level === "warning" || log.level === "error") {
+    return (
+      <span className="text-amber-500 shrink-0">
+        <svg className="w-[1em] h-[1em] inline-block mt-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v4m0 4h.01M10.29 3.86l-7.07 12.27A2 2 0 004.95 19h14.1a2 2 0 001.73-2.87L13.71 3.86a2 2 0 00-3.42 0z"></path>
+        </svg>
+      </span>
+    );
+  }
+
+  return <span className="w-[1em] shrink-0"></span>;
+}
 
 export function LogModal({ isOpen, onClose }: LogModalProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [searchQuery, setSearchQuery] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
-  const [logs, setLogs] = useState<LogEntry[]>(sampleLogs);
+  const [logs, setLogs] = useState<RuntimeLogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  // 自动滚动到底部
+  useEffect(() => {
+    if (!isOpen || !runtimeLogService.isAvailable()) {
+      return;
+    }
+
+    let active = true;
+    setIsLoading(true);
+    setLoadError(null);
+
+    runtimeLogService
+      .list({ visible_only: true, limit: 500 })
+      .then((items) => {
+        if (!active) {
+          return;
+        }
+
+        setLogs(items);
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+
+        setLoadError(error instanceof Error ? error.message : "加载运行日志失败");
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoading(false);
+        }
+      });
+
+    const unsubscribe = runtimeLogService.subscribe((event) => {
+      if (!active) {
+        return;
+      }
+
+      if (event.event === "runtime_logs.cleared") {
+        setLogs([]);
+        return;
+      }
+
+      const entry = event.payload.entry;
+      if (!entry) {
+        return;
+      }
+
+      setLogs((prev) => {
+        if (prev.some((item) => item.log_id === entry.log_id)) {
+          return prev;
+        }
+
+        return [...prev, entry];
+      });
+    });
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     if (autoScroll && logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [logs, autoScroll]);
 
-  // 过滤日志
-  const filteredLogs = logs.filter((log) =>
-    log.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (log.subInfo && log.subInfo.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredLogs = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return logs;
+    }
 
-  // 清屏
-  const handleClearLogs = () => {
-    setLogs([]);
+    return logs.filter((log) => buildSearchableText(log).includes(normalizedQuery));
+  }, [logs, searchQuery]);
+
+  const handleClearLogs = async () => {
+    try {
+      await runtimeLogService.clear();
+      setLogs([]);
+    } catch (error) {
+      console.error("清空运行日志失败:", error);
+    }
   };
 
-  // 导出日志
   const handleExportLogs = () => {
     const logText = logs
-      .map((log) => `[${log.time}] ${log.message || log.subInfo}`)
+      .map((log) => {
+        const subInfo = buildSubInfo(log);
+        return `[${formatLogTime(log.created_at)}] ${log.message}${subInfo ? ` (${subInfo})` : ""}`;
+      })
       .join("\n");
-    const blob = new Blob([logText], { type: "text/plain" });
+
+    const blob = new Blob([logText], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `log_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `runtime-log-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  if (!isOpen) return null;
-
-  // 渲染图标
-  const renderIcon = (icon?: string) => {
-    switch (icon) {
-      case "terminal":
-        return (
-          <span className="text-amber-500 font-bold shrink-0">&gt;_</span>
-        );
-      case "shield":
-        return (
-          <span className="text-emerald-500 shrink-0">
-            <svg className="w-[1em] h-[1em] inline-block mt-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-            </svg>
-          </span>
-        );
-      case "settings":
-        return (
-          <span className="text-amber-500 shrink-0">
-            <svg className="w-[1em] h-[1em] inline-block mt-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-            </svg>
-          </span>
-        );
-      case "database":
-        return (
-          <span className="text-amber-500 shrink-0">
-            <svg className="w-[1em] h-[1em] inline-block mt-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
-            </svg>
-          </span>
-        );
-      case "box":
-        return (
-          <span className="text-amber-500 shrink-0">
-            <svg className="w-[1em] h-[1em] inline-block mt-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-            </svg>
-          </span>
-        );
-      case "check":
-        return (
-          <span className="text-emerald-500 shrink-0">
-            <svg className="w-[1em] h-[1em] inline-block mt-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-          </span>
-        );
-      case "loading":
-        return (
-          <span className="text-purple-500 shrink-0 ml-1">
-            <svg className="w-4 h-4 inline-block mt-[-2px] animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-            </svg>
-          </span>
-        );
-      default:
-        return <span className="w-[1em] shrink-0"></span>;
-    }
-  };
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
       }}
     >
-      {/* 弹窗主体 */}
       <div
-        className={`w-full max-w-5xl border rounded-xl shadow-2xl flex flex-col overflow-hidden ${
+        className={`flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border shadow-2xl ${
           isDark
-            ? "bg-[#141414] border-[#2a2a2a]"
-            : "bg-white border-black/10"
+            ? "border-[#2a2a2a] bg-[#141414]"
+            : "border-black/10 bg-white"
         }`}
-        style={{ height: "85vh" }}
       >
-        {/* 头部 Header */}
         <header
-          className={`flex items-center justify-between px-6 py-4 border-b ${
+          className={`flex items-center justify-between border-b px-6 py-4 ${
             isDark ? "border-[#2a2a2a] bg-[#1a1a1a]" : "border-black/5 bg-gray-50"
           }`}
         >
           <div className={`flex items-center gap-3 ${isDark ? "text-gray-100" : "text-gray-800"}`}>
             <svg
-              className={`w-5 h-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}
+              className={`h-5 w-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -234,34 +304,32 @@ export function LogModal({ isOpen, onClose }: LogModalProps) {
           </div>
           <button
             onClick={onClose}
-            className={`transition-colors p-1 rounded ${
+            className={`rounded p-1 transition-colors ${
               isDark
-                ? "text-gray-500 hover:text-gray-300 hover:bg-white/10"
-                : "text-gray-400 hover:text-gray-600 hover:bg-black/5"
+                ? "text-gray-500 hover:bg-white/10 hover:text-gray-300"
+                : "text-gray-400 hover:bg-black/5 hover:text-gray-600"
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
           </button>
         </header>
 
-        {/* 控制台栏 */}
         <div
           className={`flex items-center justify-between px-6 py-3 ${
             isDark ? "bg-[#141414]" : "bg-gray-50"
           }`}
         >
-          {/* 搜索框 */}
           <div
-            className={`flex flex-1 max-w-md items-center border rounded-md px-3 py-1.5 transition-colors ${
+            className={`flex max-w-md flex-1 items-center rounded-md border px-3 py-1.5 transition-colors ${
               isDark
-                ? "bg-[#0a0a0a] border-[#333] focus-within:border-gray-500"
-                : "bg-white border-gray-200 focus-within:border-gray-400"
+                ? "border-[#333] bg-[#0a0a0a] focus-within:border-gray-500"
+                : "border-gray-200 bg-white focus-within:border-gray-400"
             }`}
           >
             <svg
-              className={`w-4 h-4 shrink-0 ${isDark ? "text-gray-500" : "text-gray-400"}`}
+              className={`h-4 w-4 shrink-0 ${isDark ? "text-gray-500" : "text-gray-400"}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -275,10 +343,10 @@ export function LogModal({ isOpen, onClose }: LogModalProps) {
             </svg>
             <input
               type="text"
-              placeholder="检索日志内容 (例如: Error, 加载...)"
+              placeholder="检索日志内容 (例如: 文生图, card-123)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`bg-transparent border-none outline-none text-sm w-full ml-2 ${
+              className={`ml-2 w-full border-none bg-transparent text-sm outline-none ${
                 isDark
                   ? "text-gray-300 placeholder-gray-600"
                   : "text-gray-700 placeholder-gray-400"
@@ -286,9 +354,8 @@ export function LogModal({ isOpen, onClose }: LogModalProps) {
             />
           </div>
 
-          {/* 自动滚动勾选 */}
           <label
-            className={`flex items-center gap-2 cursor-pointer group text-sm transition-colors ${
+            className={`flex cursor-pointer items-center gap-2 text-sm transition-colors ${
               isDark
                 ? "text-gray-400 hover:text-gray-200"
                 : "text-gray-500 hover:text-gray-700"
@@ -298,82 +365,65 @@ export function LogModal({ isOpen, onClose }: LogModalProps) {
               type="checkbox"
               checked={autoScroll}
               onChange={(e) => setAutoScroll(e.target.checked)}
-              className="w-4 h-4 rounded cursor-pointer accent-blue-600"
+              className="h-4 w-4 cursor-pointer rounded accent-blue-600"
             />
             <span>自动滚动到底部</span>
           </label>
         </div>
 
-        {/* 日志终端视图 */}
         <main
           ref={logContainerRef}
-          className={`flex-1 overflow-y-auto p-4 font-mono text-[13px] leading-[1.7] border-y ${
+          className={`flex-1 overflow-y-auto border-y p-4 font-mono text-[13px] leading-[1.7] ${
             isDark
-              ? "bg-[#050505] border-[#2a2a2a] text-gray-300"
-              : "bg-gray-50 border-black/5 text-gray-700"
+              ? "border-[#2a2a2a] bg-[#050505] text-gray-300"
+              : "border-black/5 bg-gray-50 text-gray-700"
           }`}
         >
-          {filteredLogs.length === 0 ? (
-            <div className={`text-center py-8 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-              {logs.length === 0 ? "暂无日志记录" : "未找到匹配的日志"}
+          {loadError ? (
+            <div className="py-8 text-center text-sm text-rose-400">{loadError}</div>
+          ) : isLoading ? (
+            <div className={`py-8 text-center ${isDark ? "text-gray-500" : "text-gray-400"}`}>日志加载中...</div>
+          ) : filteredLogs.length === 0 ? (
+            <div className={`py-8 text-center ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+              {logs.length === 0 ? "当前会话暂无运行日志" : "未找到匹配的日志"}
             </div>
           ) : (
             <div className="flex flex-col space-y-0.5">
-              {filteredLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className={`flex gap-3 py-1 px-2 rounded transition-colors ${
-                    isDark ? "hover:bg-white/5" : "hover:bg-black/5"
-                  }`}
-                >
-                  <span
-                    className={`shrink-0 select-none ${
-                      isDark ? "text-gray-600" : "text-gray-400"
+              {filteredLogs.map((log) => {
+                const subInfo = buildSubInfo(log);
+
+                return (
+                  <div
+                    key={log.log_id}
+                    className={`rounded px-2 py-1 transition-colors ${
+                      isDark ? "hover:bg-white/5" : "hover:bg-black/5"
                     }`}
                   >
-                    [{log.time}]
-                  </span>
-                  {renderIcon(log.icon)}
-                  {log.message && (
-                    <span className={isDark ? "text-gray-300" : "text-gray-700"}>
-                      {log.message}
-                      {log.progress !== undefined && (
-                        <span className="flex items-center">
-                          <span className={isDark ? "text-gray-500 mx-1" : "text-gray-400 mx-1"}>[</span>
-                          <span className="text-emerald-600/80 tracking-tighter">
-                            {"█".repeat(Math.floor(log.progress / 5))}
-                          </span>
-                          <span className={isDark ? "text-gray-500 mx-1" : "text-gray-400 mx-1"}>]</span>
-                          <span className={isDark ? "text-gray-400" : "text-gray-500"}>{log.progress}%</span>
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  {log.subInfo && (
-                    <span className={isDark ? "text-[#888]" : "text-gray-500"}>
-                      {log.subInfo}
-                    </span>
-                  )}
-                </div>
-              ))}
-              
-              {/* Loading 状态 */}
-              <div
-                className={`flex gap-3 py-1 px-2 rounded transition-colors ${
-                  isDark ? "hover:bg-white/5" : "hover:bg-black/5"
-                }`}
-              >
-                {renderIcon("loading")}
-                <span className="text-purple-400">
-                  等待连接中
-                  <span className="animate-pulse">_</span>
-                </span>
-              </div>
+                    <div className="flex gap-3">
+                      <span
+                        className={`shrink-0 select-none ${
+                          isDark ? "text-gray-600" : "text-gray-400"
+                        }`}
+                      >
+                        [{formatLogTime(log.created_at)}]
+                      </span>
+                      {renderIcon(log)}
+                      <span className={isDark ? "text-gray-300" : "text-gray-700"}>
+                        {log.message}
+                      </span>
+                    </div>
+                    {subInfo ? (
+                      <div className={`pl-[92px] ${isDark ? "text-[#888]" : "text-gray-500"}`}>
+                        {subInfo}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           )}
         </main>
 
-        {/* 底栏操作区 */}
         <footer
           className={`flex items-center justify-between px-6 py-4 ${
             isDark ? "bg-[#141414]" : "bg-gray-50"
@@ -384,12 +434,11 @@ export function LogModal({ isOpen, onClose }: LogModalProps) {
           </div>
 
           <div className="flex gap-3">
-            {/* 导出按钮 */}
             <button
               onClick={handleExportLogs}
-              className="flex items-center gap-2 px-5 py-2 bg-[#2A64F6] hover:bg-[#1d4ed8] text-white text-sm rounded transition-colors shadow-lg shadow-blue-900/20"
+              className="flex items-center gap-2 rounded bg-[#2A64F6] px-5 py-2 text-sm text-white shadow-lg shadow-blue-900/20 transition-colors hover:bg-[#1d4ed8]"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -400,12 +449,11 @@ export function LogModal({ isOpen, onClose }: LogModalProps) {
               导出日志
             </button>
 
-            {/* 清屏按钮 */}
             <button
               onClick={handleClearLogs}
-              className="flex items-center gap-2 px-5 py-2 bg-[#EF4444] hover:bg-[#dc2626] text-white text-sm rounded transition-colors shadow-lg shadow-red-900/20"
+              className="flex items-center gap-2 rounded bg-[#EF4444] px-5 py-2 text-sm text-white shadow-lg shadow-red-900/20 transition-colors hover:bg-[#dc2626]"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
