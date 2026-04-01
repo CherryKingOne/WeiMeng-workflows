@@ -221,6 +221,29 @@ export interface ModelsConfigCategoryItem {
   count: number;
 }
 
+export interface ModelOptionItem {
+  label: string;
+  value: string;
+}
+
+export interface ModelResolutionOptionItem extends ModelOptionItem {
+  size_map?: Record<string, string>;
+}
+
+export interface ModelParameterSpec {
+  input_image_mode?: string;
+  supports_multiple_input_images?: boolean;
+  supports_multiple_output_images?: boolean;
+  defaults?: {
+    aspect_ratio?: string;
+    resolution?: string;
+    image_count?: string;
+  };
+  aspect_ratio_options?: ModelOptionItem[];
+  resolution_options?: ModelResolutionOptionItem[];
+  image_count_options?: ModelOptionItem[];
+}
+
 export interface ModelsConfigModelItem {
   key: string;
   display_name: string;
@@ -230,6 +253,7 @@ export interface ModelsConfigModelItem {
   model_id: string;
   api_key: string;
   base_url: string;
+  parameter_spec?: ModelParameterSpec;
 }
 
 export interface ModelsConfigListResponse {

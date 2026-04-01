@@ -31,6 +31,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { modelsConfigService, type ModelsConfigModelItem } from "@/core/api";
+import type { ModelOptionItem, ModelParameterSpec, ModelResolutionOptionItem } from "@/core/api/types";
 import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 // Lucide 图标组件
@@ -72,6 +73,111 @@ interface ImageGenerationCardProps {
   onDataChange?: (data: Record<string, unknown>) => void;
 }
 
+const FALLBACK_ASPECT_RATIO_OPTIONS: ModelOptionItem[] = [
+  { label: "1:1", value: "1:1" },
+];
+
+const FALLBACK_RESOLUTION_OPTIONS: ModelResolutionOptionItem[] = [
+  {
+    label: "1K",
+    value: "1K",
+    size_map: {
+      "1:1": "1024*1024",
+    },
+  },
+];
+
+const FALLBACK_IMAGE_COUNT_OPTIONS: ModelOptionItem[] = [
+  { label: "1张", value: "1" },
+];
+
+function normalizeOptionValue(
+  value: string,
+  options: ModelOptionItem[],
+  fallbackValue?: string
+): string {
+  if (options.some((option) => option.value === value)) {
+    return value;
+  }
+
+  if (fallbackValue && options.some((option) => option.value === fallbackValue)) {
+    return fallbackValue;
+  }
+
+  return options[0]?.value ?? "";
+}
+
+function getNextOptionValue(currentValue: string, options: ModelOptionItem[]): string {
+  if (options.length === 0) {
+    return currentValue;
+  }
+
+  const currentIndex = options.findIndex((option) => option.value === currentValue);
+  if (currentIndex === -1) {
+    return options[0].value;
+  }
+
+  return options[(currentIndex + 1) % options.length].value;
+}
+
+function getOptionLabel(currentValue: string, options: ModelOptionItem[], fallbackLabel: string): string {
+  return options.find((option) => option.value === currentValue)?.label ?? fallbackLabel;
+}
+
+function resolveOutputSize(
+  aspectRatio: string,
+  resolution: string,
+  resolutionOptions: ModelResolutionOptionItem[]
+): string {
+  const matchedResolution = resolutionOptions.find((option) => option.value === resolution);
+  const sizeMap = matchedResolution?.size_map ?? {};
+  const resolvedSize = sizeMap[aspectRatio];
+
+  if (resolvedSize) {
+    return resolvedSize;
+  }
+
+  return Object.values(sizeMap)[0] ?? "1024*1024";
+}
+
+function buildParameterDefaults(spec?: ModelParameterSpec | null) {
+  const aspectRatioOptions = spec?.aspect_ratio_options?.length
+    ? spec.aspect_ratio_options
+    : FALLBACK_ASPECT_RATIO_OPTIONS;
+  const resolutionOptions = spec?.resolution_options?.length
+    ? spec.resolution_options
+    : FALLBACK_RESOLUTION_OPTIONS;
+  const imageCountOptions = spec?.image_count_options?.length
+    ? spec.image_count_options
+    : FALLBACK_IMAGE_COUNT_OPTIONS;
+
+  const aspectRatio = normalizeOptionValue(
+    spec?.defaults?.aspect_ratio ?? "",
+    aspectRatioOptions,
+    FALLBACK_ASPECT_RATIO_OPTIONS[0].value
+  );
+  const resolution = normalizeOptionValue(
+    spec?.defaults?.resolution ?? "",
+    resolutionOptions,
+    FALLBACK_RESOLUTION_OPTIONS[0].value
+  );
+  const imageCount = normalizeOptionValue(
+    spec?.defaults?.image_count ?? "",
+    imageCountOptions,
+    FALLBACK_IMAGE_COUNT_OPTIONS[0].value
+  );
+
+  return {
+    aspectRatioOptions,
+    resolutionOptions,
+    imageCountOptions,
+    aspectRatio,
+    resolution,
+    imageCount,
+    size: resolveOutputSize(aspectRatio, resolution, resolutionOptions),
+  };
+}
+
 export function ImageGenerationCard({
   id,
   onRemove,
@@ -86,10 +192,17 @@ export function ImageGenerationCard({
 }: ImageGenerationCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
+  const aspectRatioMenuRef = useRef<HTMLDivElement>(null);
+  const resolutionMenuRef = useRef<HTMLDivElement>(null);
+  const imageCountMenuRef = useRef<HTMLDivElement>(null);
 
   const [prompt, setPrompt] = useState("");
   const [selectedModel, setSelectedModel] = useState("Qwen Image Edit");
   const [selectedModelKey, setSelectedModelKey] = useState("");
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState("1:1");
+  const [selectedResolution, setSelectedResolution] = useState("1K");
+  const [selectedImageCount, setSelectedImageCount] = useState("1");
+  const [selectedSize, setSelectedSize] = useState("1024*1024");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isCollapsedEditorOpen, setIsCollapsedEditorOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -97,12 +210,19 @@ export function ImageGenerationCard({
   const [isModelsLoading, setIsModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const [isAspectRatioMenuOpen, setIsAspectRatioMenuOpen] = useState(false);
+  const [isResolutionMenuOpen, setIsResolutionMenuOpen] = useState(false);
+  const [isImageCountMenuOpen, setIsImageCountMenuOpen] = useState(false);
   const cardName = getCardNameValue(data, "生成图片");
 
   useEffect(() => {
     setPrompt(typeof data?.prompt === "string" ? data.prompt : "");
     setSelectedModel(typeof data?.selectedModel === "string" ? data.selectedModel : "Qwen Image Edit");
     setSelectedModelKey(typeof data?.selectedModelKey === "string" ? data.selectedModelKey : "");
+    setSelectedAspectRatio(typeof data?.selectedAspectRatio === "string" ? data.selectedAspectRatio : "1:1");
+    setSelectedResolution(typeof data?.selectedResolution === "string" ? data.selectedResolution : "1K");
+    setSelectedImageCount(typeof data?.selectedImageCount === "string" ? data.selectedImageCount : "1");
+    setSelectedSize(typeof data?.selectedSize === "string" ? data.selectedSize : "1024*1024");
     setIsCollapsed(Boolean(data?.isCollapsed));
     setIsCollapsedEditorOpen(Boolean(data?.isCollapsedEditorOpen));
   }, [data]);
@@ -111,6 +231,10 @@ export function ImageGenerationCard({
     prompt?: string;
     selectedModel?: string;
     selectedModelKey?: string;
+    selectedAspectRatio?: string;
+    selectedResolution?: string;
+    selectedImageCount?: string;
+    selectedSize?: string;
     isCollapsed?: boolean;
     isCollapsedEditorOpen?: boolean;
   }) => {
@@ -118,10 +242,25 @@ export function ImageGenerationCard({
       prompt: next.prompt ?? prompt,
       selectedModel: next.selectedModel ?? selectedModel,
       selectedModelKey: next.selectedModelKey ?? selectedModelKey,
+      selectedAspectRatio: next.selectedAspectRatio ?? selectedAspectRatio,
+      selectedResolution: next.selectedResolution ?? selectedResolution,
+      selectedImageCount: next.selectedImageCount ?? selectedImageCount,
+      selectedSize: next.selectedSize ?? selectedSize,
       isCollapsed: next.isCollapsed ?? isCollapsed,
       isCollapsedEditorOpen: next.isCollapsedEditorOpen ?? isCollapsedEditorOpen,
     });
-  }, [isCollapsed, isCollapsedEditorOpen, onDataChange, prompt, selectedModel, selectedModelKey]);
+  }, [
+    isCollapsed,
+    isCollapsedEditorOpen,
+    onDataChange,
+    prompt,
+    selectedAspectRatio,
+    selectedImageCount,
+    selectedModel,
+    selectedModelKey,
+    selectedResolution,
+    selectedSize,
+  ]);
 
   const loadImageModels = useCallback(async () => {
     if (!modelsConfigService.isAvailable()) {
@@ -149,23 +288,33 @@ export function ImageGenerationCard({
   }, [loadImageModels]);
 
   useEffect(() => {
-    if (!isModelMenuOpen) {
+    if (!isModelMenuOpen && !isAspectRatioMenuOpen && !isResolutionMenuOpen && !isImageCountMenuOpen) {
       return;
     }
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (modelMenuRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+
+      if (
+        modelMenuRef.current?.contains(target) ||
+        aspectRatioMenuRef.current?.contains(target) ||
+        resolutionMenuRef.current?.contains(target) ||
+        imageCountMenuRef.current?.contains(target)
+      ) {
         return;
       }
 
       setIsModelMenuOpen(false);
+      setIsAspectRatioMenuOpen(false);
+      setIsResolutionMenuOpen(false);
+      setIsImageCountMenuOpen(false);
     };
 
     window.addEventListener("mousedown", handlePointerDown);
     return () => {
       window.removeEventListener("mousedown", handlePointerDown);
     };
-  }, [isModelMenuOpen]);
+  }, [isAspectRatioMenuOpen, isImageCountMenuOpen, isModelMenuOpen, isResolutionMenuOpen]);
 
   const selectedModelConfig = useMemo(() => {
     if (selectedModelKey) {
@@ -174,6 +323,55 @@ export function ImageGenerationCard({
 
     return imageModels.find((model) => model.display_name === selectedModel) ?? null;
   }, [imageModels, selectedModel, selectedModelKey]);
+
+  const selectedParameterSpec = useMemo(
+    () => selectedModelConfig?.parameter_spec ?? null,
+    [selectedModelConfig]
+  );
+
+  const parameterDefaults = useMemo(
+    () => buildParameterDefaults(selectedParameterSpec),
+    [selectedParameterSpec]
+  );
+
+  const aspectRatioOptions = parameterDefaults.aspectRatioOptions;
+  const resolutionOptions = parameterDefaults.resolutionOptions;
+  const imageCountOptions = parameterDefaults.imageCountOptions;
+
+  const normalizedAspectRatio = useMemo(
+    () => normalizeOptionValue(selectedAspectRatio, aspectRatioOptions, parameterDefaults.aspectRatio),
+    [aspectRatioOptions, parameterDefaults.aspectRatio, selectedAspectRatio]
+  );
+
+  const normalizedResolution = useMemo(
+    () => normalizeOptionValue(selectedResolution, resolutionOptions, parameterDefaults.resolution),
+    [parameterDefaults.resolution, resolutionOptions, selectedResolution]
+  );
+
+  const normalizedImageCount = useMemo(
+    () => normalizeOptionValue(selectedImageCount, imageCountOptions, parameterDefaults.imageCount),
+    [imageCountOptions, parameterDefaults.imageCount, selectedImageCount]
+  );
+
+  const resolvedOutputSize = useMemo(
+    () => resolveOutputSize(normalizedAspectRatio, normalizedResolution, resolutionOptions),
+    [normalizedAspectRatio, normalizedResolution, resolutionOptions]
+  );
+
+  const aspectRatioLabel = useMemo(
+    () => getOptionLabel(normalizedAspectRatio, aspectRatioOptions, "1:1"),
+    [aspectRatioOptions, normalizedAspectRatio]
+  );
+
+  const resolutionLabel = useMemo(
+    () => getOptionLabel(normalizedResolution, resolutionOptions, "1K"),
+    [normalizedResolution, resolutionOptions]
+  );
+
+  const imageCountLabel = useMemo(
+    () => getOptionLabel(normalizedImageCount, imageCountOptions, "1张"),
+    [imageCountOptions, normalizedImageCount]
+  );
 
   useEffect(() => {
     if (imageModels.length === 0) {
@@ -189,13 +387,65 @@ export function ImageGenerationCard({
     }
 
     const fallbackModel = imageModels[0];
+    const fallbackParameterDefaults = buildParameterDefaults(fallbackModel.parameter_spec);
     setSelectedModel(fallbackModel.display_name);
     setSelectedModelKey(fallbackModel.key);
+    setSelectedAspectRatio(fallbackParameterDefaults.aspectRatio);
+    setSelectedResolution(fallbackParameterDefaults.resolution);
+    setSelectedImageCount(fallbackParameterDefaults.imageCount);
+    setSelectedSize(fallbackParameterDefaults.size);
     syncCardData({
       selectedModel: fallbackModel.display_name,
       selectedModelKey: fallbackModel.key,
+      selectedAspectRatio: fallbackParameterDefaults.aspectRatio,
+      selectedResolution: fallbackParameterDefaults.resolution,
+      selectedImageCount: fallbackParameterDefaults.imageCount,
+      selectedSize: fallbackParameterDefaults.size,
     });
   }, [imageModels, selectedModel, selectedModelConfig, selectedModelKey, syncCardData]);
+
+  useEffect(() => {
+    const nextData: {
+      selectedAspectRatio?: string;
+      selectedResolution?: string;
+      selectedImageCount?: string;
+      selectedSize?: string;
+    } = {};
+
+    if (selectedAspectRatio !== normalizedAspectRatio) {
+      setSelectedAspectRatio(normalizedAspectRatio);
+      nextData.selectedAspectRatio = normalizedAspectRatio;
+    }
+
+    if (selectedResolution !== normalizedResolution) {
+      setSelectedResolution(normalizedResolution);
+      nextData.selectedResolution = normalizedResolution;
+    }
+
+    if (selectedImageCount !== normalizedImageCount) {
+      setSelectedImageCount(normalizedImageCount);
+      nextData.selectedImageCount = normalizedImageCount;
+    }
+
+    if (selectedSize !== resolvedOutputSize) {
+      setSelectedSize(resolvedOutputSize);
+      nextData.selectedSize = resolvedOutputSize;
+    }
+
+    if (Object.keys(nextData).length > 0) {
+      syncCardData(nextData);
+    }
+  }, [
+    normalizedAspectRatio,
+    normalizedImageCount,
+    normalizedResolution,
+    resolvedOutputSize,
+    selectedAspectRatio,
+    selectedImageCount,
+    selectedResolution,
+    selectedSize,
+    syncCardData,
+  ]);
 
   const hasConfiguredApiKey = Boolean(selectedModelConfig?.api_key.trim());
   const modelHintText = useMemo(() => {
@@ -288,17 +538,84 @@ export function ImageGenerationCard({
       await loadImageModels();
     }
 
+    setIsAspectRatioMenuOpen(false);
+    setIsResolutionMenuOpen(false);
+    setIsImageCountMenuOpen(false);
     setIsModelMenuOpen((prev) => !prev);
   }, [id, isModelMenuOpen, loadImageModels, onFocus]);
 
   const handleSelectModel = useCallback((model: ModelsConfigModelItem) => {
+    const nextParameterDefaults = buildParameterDefaults(model.parameter_spec);
     setSelectedModel(model.display_name);
     setSelectedModelKey(model.key);
+    setSelectedAspectRatio(nextParameterDefaults.aspectRatio);
+    setSelectedResolution(nextParameterDefaults.resolution);
+    setSelectedImageCount(nextParameterDefaults.imageCount);
+    setSelectedSize(nextParameterDefaults.size);
     syncCardData({
       selectedModel: model.display_name,
       selectedModelKey: model.key,
+      selectedAspectRatio: nextParameterDefaults.aspectRatio,
+      selectedResolution: nextParameterDefaults.resolution,
+      selectedImageCount: nextParameterDefaults.imageCount,
+      selectedSize: nextParameterDefaults.size,
     });
     setIsModelMenuOpen(false);
+  }, [syncCardData]);
+
+  const handleToggleAspectRatioMenu = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+    setIsModelMenuOpen(false);
+    setIsResolutionMenuOpen(false);
+    setIsImageCountMenuOpen(false);
+    setIsAspectRatioMenuOpen((prev) => !prev);
+  }, [id, onFocus]);
+
+  const handleToggleResolutionMenu = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+    setIsModelMenuOpen(false);
+    setIsAspectRatioMenuOpen(false);
+    setIsImageCountMenuOpen(false);
+    setIsResolutionMenuOpen((prev) => !prev);
+  }, [id, onFocus]);
+
+  const handleToggleImageCountMenu = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+    setIsModelMenuOpen(false);
+    setIsAspectRatioMenuOpen(false);
+    setIsResolutionMenuOpen(false);
+    setIsImageCountMenuOpen((prev) => !prev);
+  }, [id, onFocus]);
+
+  const handleSelectAspectRatio = useCallback((value: string) => {
+    const nextSize = resolveOutputSize(value, normalizedResolution, resolutionOptions);
+    setSelectedAspectRatio(value);
+    setSelectedSize(nextSize);
+    syncCardData({
+      selectedAspectRatio: value,
+      selectedSize: nextSize,
+    });
+    setIsAspectRatioMenuOpen(false);
+  }, [normalizedResolution, resolutionOptions, syncCardData]);
+
+  const handleSelectResolution = useCallback((value: string) => {
+    const nextSize = resolveOutputSize(normalizedAspectRatio, value, resolutionOptions);
+    setSelectedResolution(value);
+    setSelectedSize(nextSize);
+    syncCardData({
+      selectedResolution: value,
+      selectedSize: nextSize,
+    });
+    setIsResolutionMenuOpen(false);
+  }, [normalizedAspectRatio, resolutionOptions, syncCardData]);
+
+  const handleSelectImageCount = useCallback((value: string) => {
+    setSelectedImageCount(value);
+    syncCardData({ selectedImageCount: value });
+    setIsImageCountMenuOpen(false);
   }, [syncCardData]);
 
   const handleConnectionHandleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -463,8 +780,152 @@ export function ImageGenerationCard({
                   </div>
                 ) : null}
               </div>
-              <button type="button" className={chipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1:1</button>
-              <button type="button" className={chipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1K</button>
+              <div className="relative" ref={aspectRatioMenuRef}>
+                <button
+                  type="button"
+                  className={`${chipButtonClass} flex items-center gap-1.5`}
+                  onMouseDown={stopPropagation}
+                  onClick={handleToggleAspectRatioMenu}
+                  title="选择图片比例"
+                >
+                  <span>{aspectRatioLabel}</span>
+                  <svg className={`h-3.5 w-3.5 text-[#71717a] transition-transform ${isAspectRatioMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isAspectRatioMenuOpen ? (
+                  <div
+                    className="absolute left-0 top-full z-30 mt-2 min-w-[120px] overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                    onMouseDown={stopPropagation}
+                    onClick={stopPropagation}
+                  >
+                    <div className="max-h-64 overflow-y-auto py-1.5">
+                      {aspectRatioOptions.map((option) => {
+                        const isSelected = option.value === normalizedAspectRatio;
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`flex w-full items-center justify-between px-4 py-2.5 text-left transition ${
+                              isSelected ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/5"
+                            }`}
+                            onClick={() => handleSelectAspectRatio(option.value)}
+                          >
+                            <span className="text-sm">{option.label}</span>
+                            {isSelected ? (
+                              <svg className="ml-3 h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div className="relative" ref={resolutionMenuRef}>
+                <button
+                  type="button"
+                  className={`${chipButtonClass} flex items-center gap-1.5`}
+                  onMouseDown={stopPropagation}
+                  onClick={handleToggleResolutionMenu}
+                  title={`选择输出分辨率，当前尺寸 ${resolvedOutputSize}`}
+                >
+                  <span>{resolutionLabel}</span>
+                  <svg className={`h-3.5 w-3.5 text-[#71717a] transition-transform ${isResolutionMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isResolutionMenuOpen ? (
+                  <div
+                    className="absolute left-0 top-full z-30 mt-2 min-w-[140px] overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                    onMouseDown={stopPropagation}
+                    onClick={stopPropagation}
+                  >
+                    <div className="max-h-64 overflow-y-auto py-1.5">
+                      {resolutionOptions.map((option) => {
+                        const isSelected = option.value === normalizedResolution;
+                        const currentSize = option.size_map?.[normalizedAspectRatio] ?? Object.values(option.size_map ?? {})[0];
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition ${
+                              isSelected ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/5"
+                            }`}
+                            onClick={() => handleSelectResolution(option.value)}
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm">{option.label}</div>
+                              {currentSize ? (
+                                <div className="text-xs text-gray-500">{currentSize}</div>
+                              ) : null}
+                            </div>
+                            {isSelected ? (
+                              <svg className="ml-3 h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              {imageCountOptions.length > 0 ? (
+                <div className="relative" ref={imageCountMenuRef}>
+                  <button
+                    type="button"
+                    className={`${chipButtonClass} flex items-center gap-1.5`}
+                    onMouseDown={stopPropagation}
+                    onClick={handleToggleImageCountMenu}
+                    title="选择出图数量"
+                  >
+                    <span>{imageCountLabel}</span>
+                    <svg className={`h-3.5 w-3.5 text-[#71717a] transition-transform ${isImageCountMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {isImageCountMenuOpen ? (
+                    <div
+                      className="absolute left-0 top-full z-30 mt-2 min-w-[120px] overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                      onMouseDown={stopPropagation}
+                      onClick={stopPropagation}
+                    >
+                      <div className="max-h-64 overflow-y-auto py-1.5">
+                        {imageCountOptions.map((option) => {
+                          const isSelected = option.value === normalizedImageCount;
+
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              className={`flex w-full items-center justify-between px-4 py-2.5 text-left transition ${
+                                isSelected ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/5"
+                              }`}
+                              onClick={() => handleSelectImageCount(option.value)}
+                            >
+                              <span className="text-sm">{option.label}</span>
+                              {isSelected ? (
+                                <svg className="ml-3 h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <button
                 type="button"
                 className={`flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-[#18181b] text-white transition hover:bg-white/5 ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
@@ -565,8 +1026,152 @@ export function ImageGenerationCard({
                   </div>
                 ) : null}
               </div>
-              <button type="button" className={compactChipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1:1</button>
-              <button type="button" className={compactChipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1K</button>
+              <div className="relative" ref={aspectRatioMenuRef}>
+                <button
+                  type="button"
+                  className={`${compactChipButtonClass} flex items-center gap-1.5`}
+                  onMouseDown={stopPropagation}
+                  onClick={handleToggleAspectRatioMenu}
+                  title="选择图片比例"
+                >
+                  <span>{aspectRatioLabel}</span>
+                  <svg className={`h-3.5 w-3.5 text-[#71717a] transition-transform ${isAspectRatioMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isAspectRatioMenuOpen ? (
+                  <div
+                    className="absolute left-0 top-full z-30 mt-2 min-w-[120px] overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                    onMouseDown={stopPropagation}
+                    onClick={stopPropagation}
+                  >
+                    <div className="max-h-64 overflow-y-auto py-1.5">
+                      {aspectRatioOptions.map((option) => {
+                        const isSelected = option.value === normalizedAspectRatio;
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`flex w-full items-center justify-between px-4 py-2.5 text-left transition ${
+                              isSelected ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/5"
+                            }`}
+                            onClick={() => handleSelectAspectRatio(option.value)}
+                          >
+                            <span className="text-sm">{option.label}</span>
+                            {isSelected ? (
+                              <svg className="ml-3 h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div className="relative" ref={resolutionMenuRef}>
+                <button
+                  type="button"
+                  className={`${compactChipButtonClass} flex items-center gap-1.5`}
+                  onMouseDown={stopPropagation}
+                  onClick={handleToggleResolutionMenu}
+                  title={`选择输出分辨率，当前尺寸 ${resolvedOutputSize}`}
+                >
+                  <span>{resolutionLabel}</span>
+                  <svg className={`h-3.5 w-3.5 text-[#71717a] transition-transform ${isResolutionMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isResolutionMenuOpen ? (
+                  <div
+                    className="absolute left-0 top-full z-30 mt-2 min-w-[140px] overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                    onMouseDown={stopPropagation}
+                    onClick={stopPropagation}
+                  >
+                    <div className="max-h-64 overflow-y-auto py-1.5">
+                      {resolutionOptions.map((option) => {
+                        const isSelected = option.value === normalizedResolution;
+                        const currentSize = option.size_map?.[normalizedAspectRatio] ?? Object.values(option.size_map ?? {})[0];
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition ${
+                              isSelected ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/5"
+                            }`}
+                            onClick={() => handleSelectResolution(option.value)}
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm">{option.label}</div>
+                              {currentSize ? (
+                                <div className="text-xs text-gray-500">{currentSize}</div>
+                              ) : null}
+                            </div>
+                            {isSelected ? (
+                              <svg className="ml-3 h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              {imageCountOptions.length > 0 ? (
+                <div className="relative" ref={imageCountMenuRef}>
+                  <button
+                    type="button"
+                    className={`${compactChipButtonClass} flex items-center gap-1.5`}
+                    onMouseDown={stopPropagation}
+                    onClick={handleToggleImageCountMenu}
+                    title="选择出图数量"
+                  >
+                    <span>{imageCountLabel}</span>
+                    <svg className={`h-3.5 w-3.5 text-[#71717a] transition-transform ${isImageCountMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {isImageCountMenuOpen ? (
+                    <div
+                      className="absolute left-0 top-full z-30 mt-2 min-w-[120px] overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                      onMouseDown={stopPropagation}
+                      onClick={stopPropagation}
+                    >
+                      <div className="max-h-64 overflow-y-auto py-1.5">
+                        {imageCountOptions.map((option) => {
+                          const isSelected = option.value === normalizedImageCount;
+
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              className={`flex w-full items-center justify-between px-4 py-2.5 text-left transition ${
+                                isSelected ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/5"
+                              }`}
+                              onClick={() => handleSelectImageCount(option.value)}
+                            >
+                              <span className="text-sm">{option.label}</span>
+                              {isSelected ? (
+                                <svg className="ml-3 h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <button
                 type="button"
                 className={`flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-[#18181b] text-white transition hover:bg-white/5 ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}

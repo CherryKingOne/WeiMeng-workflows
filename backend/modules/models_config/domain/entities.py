@@ -1,6 +1,7 @@
 """Models config entities."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,6 +16,7 @@ class ModelDefinition:
     default_model_id: str
     default_base_url: str
     is_active: bool
+    parameter_spec: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -29,3 +31,4 @@ class ConfiguredModel:
     model_id: str
     api_key: str
     base_url: str
+    parameter_spec: dict[str, Any] = field(default_factory=dict)

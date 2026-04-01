@@ -7,8 +7,10 @@ frontend-entered credentials into code or registry files.
 
 from __future__ import annotations
 
+import importlib
 import json
 from pathlib import Path
+from typing import Any
 
 from modules.models_config.domain.entities import ModelDefinition
 
@@ -43,15 +45,19 @@ class ProviderRegistryLoader:
                 if not isinstance(item, dict):
                     continue
 
+                module_name = str(item.get("module_name", "")).strip()
+                parameter_spec = self._load_parameter_spec(category, module_name)
+
                 definition = ModelDefinition(
                     key=str(item.get("key", "")).strip(),
                     display_name=str(item.get("display_name", "")).strip(),
                     provider=str(item.get("provider", "")).strip(),
                     category=category,
-                    module_name=str(item.get("module_name", "")).strip(),
+                    module_name=module_name,
                     default_model_id=str(item.get("default_model_id", "")).strip(),
                     default_base_url=str(item.get("default_base_url", "")).strip(),
                     is_active=bool(item.get("is_active", False)),
+                    parameter_spec=parameter_spec,
                 )
 
                 if definition.is_active and definition.key:
@@ -65,3 +71,21 @@ class ProviderRegistryLoader:
     def _read_registry_payload(self, registry_path: Path) -> dict[str, object]:
         with registry_path.open("r", encoding="utf-8") as file:
             return json.load(file)
+
+    def _load_parameter_spec(
+        self,
+        category: str,
+        module_name: str,
+    ) -> dict[str, Any]:
+        if not module_name:
+            return {}
+
+        import_path = f"modules.models_config.infrastructure.providers.{category}.{module_name}"
+
+        try:
+            module = importlib.import_module(import_path)
+        except Exception:
+            return {}
+
+        parameter_spec = getattr(module, "MODEL_PARAMETER_SPEC", {})
+        return parameter_spec if isinstance(parameter_spec, dict) else {}

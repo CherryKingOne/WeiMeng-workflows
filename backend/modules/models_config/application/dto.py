@@ -1,6 +1,7 @@
 """Models config data transfer objects."""
 
 from dataclasses import asdict, dataclass, field
+from typing import Any
 
 from modules.models_config.domain.entities import ConfiguredModel
 
@@ -48,6 +49,7 @@ class ConfiguredModelDTO:
     model_id: str
     api_key: str
     base_url: str
+    parameter_spec: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_entity(cls, model: ConfiguredModel) -> "ConfiguredModelDTO":
@@ -60,9 +62,10 @@ class ConfiguredModelDTO:
             model_id=model.model_id,
             api_key=model.api_key,
             base_url=model.base_url,
+            parameter_spec=model.parameter_spec,
         )
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -73,7 +76,7 @@ class ModelsConfigSnapshotDTO:
     categories: list[ModelCategoryDTO] = field(default_factory=list)
     models: list[ConfiguredModelDTO] = field(default_factory=list)
 
-    def to_dict(self) -> dict[str, list[dict[str, str | int]]]:
+    def to_dict(self) -> dict[str, list[dict[str, Any]]]:
         return {
             "categories": [item.to_dict() for item in self.categories],
             "models": [item.to_dict() for item in self.models],

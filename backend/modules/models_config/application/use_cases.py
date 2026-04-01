@@ -83,6 +83,7 @@ class ListModelsConfigUseCase:
             model_id=model_id,
             api_key=api_key,
             base_url=base_url,
+            parameter_spec=definition.parameter_spec,
         )
 
     def _read_setting_or_default(
