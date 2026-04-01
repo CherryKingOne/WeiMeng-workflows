@@ -522,6 +522,13 @@ export function CanvasContainer({
       };
     }
 
+    if (card.type === "storyboard-form") {
+      return {
+        x: offset.x + (card.position.x + STORYBOARD_CARD_WIDTH) * scale,
+        y: offset.y + (card.position.y + STORYBOARD_CARD_HEADER_OFFSET + STORYBOARD_CARD_HEIGHT / 2) * scale,
+      };
+    }
+
     if (card.type === "compare") {
       return {
         x: offset.x + (card.position.x + COMPARE_CARD_WIDTH) * scale,

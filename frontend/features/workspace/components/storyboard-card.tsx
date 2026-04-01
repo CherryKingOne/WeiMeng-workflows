@@ -207,6 +207,9 @@ export function StoryboardCard({
 
   // 视图模式状态
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  // hover 状态
+  const [isHovered, setIsHovered] = useState(false);
   
   // 分镜项目列表
   const [items, setItems] = useState<StoryboardItem[]>(() => parseStoryboardData(data?.storyboardItems));
@@ -661,27 +664,31 @@ export function StoryboardCard({
           width: viewMode === "table" ? "1060px" : "820px",
         }}
         onClick={handleCardClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         {/* 左侧连接点 */}
         <div className="absolute -left-[5px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] bg-[#666] rounded-full border-[1.5px] border-[#171717] z-10" />
 
-        {/* 右上关闭按钮 */}
+        {/* 右上关闭按钮 - hover 时显示 */}
         <button
-          className="absolute -right-[12px] -top-[12px] w-[24px] h-[24px] bg-[#222] border border-[#3a3a3a] rounded-full flex items-center justify-center text-gray-400 z-20 hover:text-white hover:bg-[#333] transition-colors"
+          className={`absolute -right-[12px] -top-[12px] w-[24px] h-[24px] bg-[#222] border border-[#3a3a3a] rounded-full flex items-center justify-center text-gray-400 z-20 hover:text-white hover:bg-[#333] transition-all duration-150 ${
+            isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
           onClick={handleRemove}
         >
           <CloseIcon />
         </button>
 
-        {/* 右侧输出连接点 */}
-        {hasOutgoingConnection && (
-          <button
-            className="absolute -right-[18px] top-1/2 -translate-y-1/2 w-[36px] h-[36px] bg-[#111] border border-[#4a4a4a] rounded-full flex items-center justify-center text-white shadow-[0_0_10px_rgba(0,0,0,0.5)] z-20 hover:bg-[#1a1a1a] transition-colors"
-            onMouseDown={(e) => onConnectionDragStart?.(id, e)}
-          >
-            <PlusIcon className="w-[18px] h-[18px]" />
-          </button>
-        )}
+        {/* 右侧输出连接点 - hover 时显示 */}
+        <button
+          className={`absolute -right-[18px] top-1/2 -translate-y-1/2 w-[36px] h-[36px] bg-[#111] border border-[#4a4a4a] rounded-full flex items-center justify-center text-white shadow-[0_0_10px_rgba(0,0,0,0.5)] z-20 hover:bg-[#1a1a1a] transition-all duration-150 ${
+            isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+          onMouseDown={(e) => onConnectionDragStart?.(id, e)}
+        >
+          <PlusIcon className="w-[18px] h-[18px]" />
+        </button>
 
         {/* 顶栏 */}
         <div className="flex justify-between items-center p-3.5 border-b border-[#2a2a2a]">
