@@ -1,0 +1,80 @@
+backend/
+├── .python-version
+├── README.md
+├── __init__.py
+├── core/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── container.py
+│   ├── event_bus.py
+│   └── ipc_router.py
+├── data/
+│   ├── node_assets/
+│   ├── settings/
+│   ├── settings.db
+│   └── workflows/
+│       └── workflows.db
+├── ipc_server.py
+├── main.py
+├── modules/
+│   ├── __init__.py
+│   ├── nodes_market/
+│   │   ├── __init__.py
+│   │   ├── application/
+│   │   │   ├── __init__.py
+│   │   │   ├── dto.py
+│   │   │   └── use_cases.py
+│   │   ├── domain/
+│   │   │   ├── __init__.py
+│   │   │   ├── entities.py
+│   │   │   ├── exceptions.py
+│   │   │   ├── repositories.py
+│   │   │   └── value_objects.py
+│   │   ├── infrastructure/
+│   │   │   ├── __init__.py
+│   │   │   ├── file_storage.py
+│   │   │   └── sqlite_repo.py
+│   │   └── presentation/
+│   │       ├── __init__.py
+│   │       └── ipc_handlers.py
+│   ├── settings/
+│   │   ├── __init__.py
+│   │   ├── application/
+│   │   │   ├── __init__.py
+│   │   │   ├── dto.py
+│   │   │   └── use_cases.py
+│   │   ├── domain/
+│   │   │   ├── __init__.py
+│   │   │   ├── entities.py
+│   │   │   ├── exceptions.py
+│   │   │   ├── repositories.py
+│   │   │   └── value_objects.py
+│   │   ├── infrastructure/
+│   │   │   ├── __init__.py
+│   │   │   ├── file_storage.py
+│   │   │   └── sqlite_repo.py
+│   │   └── presentation/
+│   │       ├── __init__.py
+│   │       └── ipc_handlers.py
+│   └── workflow_engine/
+│       ├── __init__.py
+│       ├── application/
+│       │   ├── __init__.py
+│       │   ├── dto.py
+│       │   └── use_cases.py
+│       ├── domain/
+│       │   ├── __init__.py
+│       │   ├── entities.py
+│       │   ├── exceptions.py
+│       │   ├── repositories.py
+│       │   └── value_objects.py
+│       ├── infrastructure/
+│       │   ├── __init__.py
+│       │   ├── file_storage.py
+│       │   └── sqlite_repo.py
+│       └── presentation/
+│           ├── __init__.py
+│           └── ipc_handlers.py
+├── pyproject.toml
+├── requirements.txt
+└── uv.lock
