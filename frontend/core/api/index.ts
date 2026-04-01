@@ -16,6 +16,7 @@
  *     ├── types.ts           # 类型定义
  *     ├── workflow-service.ts    # 工作流 API
  *     ├── settings-service.ts    # 设置 API
+ *     ├── models-config-service.ts # 模型配置 API
  *     ├── nodes-market-service.ts # 节点市场 API
  *     └── index.ts           # 本文件 - 统一导出
  *
@@ -111,6 +112,20 @@ export type {
   FileFilter,
   FileBase64Result,
   ClearCacheResult,
+} from "./types";
+
+// Models Config 模型配置服务
+export { modelsConfigService } from "./models-config-service";
+export type {
+  ModelCategory,
+  ModelsConfigCategoryItem,
+  ModelsConfigModelItem,
+  ModelsConfigListResponse,
+  ModelsConfigSaveItem,
+  ModelsConfigSaveRequest,
+  ModelsConfigSaveResponse,
+  ModelsConfigTestConnectionRequest,
+  ModelsConfigTestConnectionResponse,
 } from "./types";
 
 // Nodes Market 节点市场服务

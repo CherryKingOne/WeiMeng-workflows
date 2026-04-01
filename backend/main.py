@@ -5,6 +5,9 @@ from core.ipc_router import IPCRouter
 from modules.nodes_market.presentation.ipc_handlers import (
     register_handlers as register_nodes_market_handlers,
 )
+from modules.models_config.presentation.ipc_handlers import (
+    register_handlers as register_models_config_handlers,
+)
 from modules.settings.presentation.ipc_handlers import (
     register_handlers as register_settings_handlers,
 )
@@ -21,6 +24,7 @@ def create_application() -> tuple[ApplicationContainer, IPCRouter]:
     register_workflow_handlers(router, container)
     register_nodes_market_handlers(router, container)
     register_settings_handlers(router, container)
+    register_models_config_handlers(router, container)
 
     return container, router
 
@@ -36,4 +40,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

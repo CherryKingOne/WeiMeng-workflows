@@ -33,6 +33,7 @@ Python IPC 服务器 - 进程间通信桥接
 - workflow.create, workflow.list, workflow.get, workflow.update, workflow.delete
 - settings.list, settings.update
 - nodes_market.list
+- models_config.list, models_config.save, models_config.test_connection
 
 【如何新增 IPC 通道】
 1. 在 modules/xxx/presentation/ipc_handlers.py 添加 handler
@@ -57,6 +58,9 @@ from modules.settings.presentation.ipc_handlers import (
 from modules.nodes_market.presentation.ipc_handlers import (
     register_handlers as register_nodes_market_handlers,
 )
+from modules.models_config.presentation.ipc_handlers import (
+    register_handlers as register_models_config_handlers,
+)
 
 
 class IPCServer:
@@ -73,6 +77,7 @@ class IPCServer:
         register_workflow_handlers(self.router, self.container)
         register_settings_handlers(self.router, self.container)
         register_nodes_market_handlers(self.router, self.container)
+        register_models_config_handlers(self.router, self.container)
         print("[IPC Server] 所有 handler 注册完成", flush=True)
         print(f"[IPC Server] 可用路由: {self.router.list_routes()}", flush=True)
 

@@ -1,0 +1,14 @@
+{
+  "category": "video",
+  "models": [
+    {
+      "key": "kling_kling_v3_video_generation",
+      "display_name": "Kling V3 Video Generation",
+      "provider": "Alibaba DashScope",
+      "module_name": "kling_kling_v3_video_generation",
+      "default_model_id": "kling/kling-v3-video-generation",
+      "default_base_url": "https://dashscope.aliyuncs.com/api/v1",
+      "is_active": true
+    }
+  ]
+}

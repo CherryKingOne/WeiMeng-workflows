@@ -1,0 +1,50 @@
+{
+  "category": "image",
+  "models": [
+    {
+      "key": "qwen_image_edit_max_2026_01_16",
+      "display_name": "Qwen Image Edit Max 2026-01-16",
+      "provider": "Alibaba Qwen",
+      "module_name": "qwen_image_edit_max_2026_01_16",
+      "default_model_id": "qwen-image-edit-max-2026-01-16",
+      "default_base_url": "https://dashscope.aliyuncs.com/api/v1",
+      "is_active": true
+    },
+    {
+      "key": "qwen_image_2_0_pro",
+      "display_name": "Qwen Image 2.0 Pro",
+      "provider": "Alibaba Qwen",
+      "module_name": "qwen_image_2_0_pro",
+      "default_model_id": "qwen-image-2.0-pro",
+      "default_base_url": "https://dashscope.aliyuncs.com/api/v1",
+      "is_active": true
+    },
+    {
+      "key": "doubao_seedream_5_0_260128",
+      "display_name": "Doubao Seedream 5.0 260128",
+      "provider": "Volcengine Ark",
+      "module_name": "doubao_seedream_5_0_260128",
+      "default_model_id": "doubao-seedream-5-0-260128",
+      "default_base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "is_active": true
+    },
+    {
+      "key": "doubao_seedream_4_5_251128",
+      "display_name": "Doubao Seedream 4.5 251128",
+      "provider": "Volcengine Ark",
+      "module_name": "doubao_seedream_4_5_251128",
+      "default_model_id": "doubao-seedream-4-5-251128",
+      "default_base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "is_active": true
+    },
+    {
+      "key": "doubao_seedream_4_0_250828",
+      "display_name": "Doubao Seedream 4.0 250828",
+      "provider": "Volcengine Ark",
+      "module_name": "doubao_seedream_4_0_250828",
+      "default_model_id": "doubao-seedream-4-0-250828",
+      "default_base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "is_active": true
+    }
+  ]
+}

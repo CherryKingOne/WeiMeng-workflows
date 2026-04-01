@@ -1,0 +1,32 @@
+{
+  "category": "chat",
+  "models": [
+    {
+      "key": "gpt_5_4",
+      "display_name": "GPT-5.4",
+      "provider": "OpenAI",
+      "module_name": "gpt_5_4",
+      "default_model_id": "gpt-5.4",
+      "default_base_url": "https://api.openai.com/v1",
+      "is_active": true
+    },
+    {
+      "key": "deepseek_v3",
+      "display_name": "DeepSeek V3",
+      "provider": "DeepSeek",
+      "module_name": "deepseek_v3",
+      "default_model_id": "deepseek-chat",
+      "default_base_url": "https://api.deepseek.com/v1",
+      "is_active": true
+    },
+    {
+      "key": "gemini_3_flash_preview",
+      "display_name": "Gemini 3 Flash Preview",
+      "provider": "Google Gemini",
+      "module_name": "gemini_3_flash_preview",
+      "default_model_id": "gemini-3-flash-preview",
+      "default_base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "is_active": true
+    }
+  ]
+}

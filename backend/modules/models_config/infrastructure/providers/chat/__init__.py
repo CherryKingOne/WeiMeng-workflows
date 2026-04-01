@@ -1,0 +1,1 @@
+"""Chat provider registry package."""

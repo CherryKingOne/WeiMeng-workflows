@@ -1,0 +1,1 @@
+"""Models config bounded context."""

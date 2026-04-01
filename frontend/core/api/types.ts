@@ -205,6 +205,67 @@ export interface FileBase64Result {
 
 /**
  * ============================================================
+ * Models Config 模块 - 模型配置相关类型定义
+ * 后端 IPC Channels:
+ * - models_config.list: 获取 registry + 数据库存储后的模型配置
+ * - models_config.save: 持久化模型配置到 SQLite
+ * - models_config.test_connection: 使用 base_url + /models 测试连接
+ * ============================================================
+ */
+
+export type ModelCategory = "chat" | "image" | "video";
+
+export interface ModelsConfigCategoryItem {
+  key: ModelCategory;
+  label: string;
+  count: number;
+}
+
+export interface ModelsConfigModelItem {
+  key: string;
+  display_name: string;
+  provider: string;
+  category: ModelCategory;
+  module_name: string;
+  model_id: string;
+  api_key: string;
+  base_url: string;
+}
+
+export interface ModelsConfigListResponse {
+  categories: ModelsConfigCategoryItem[];
+  models: ModelsConfigModelItem[];
+}
+
+export interface ModelsConfigSaveItem {
+  key: string;
+  model_id: string;
+  api_key: string;
+  base_url: string;
+}
+
+export interface ModelsConfigSaveRequest {
+  models: ModelsConfigSaveItem[];
+}
+
+export type ModelsConfigSaveResponse = ModelsConfigListResponse;
+
+export interface ModelsConfigTestConnectionRequest {
+  key: string;
+  api_key: string;
+  base_url: string;
+}
+
+export interface ModelsConfigTestConnectionResponse {
+  key: string;
+  ok: boolean;
+  status_code: number | null;
+  tested_url: string;
+  message: string;
+}
+
+/**
+ * ============================================================
  * Nodes Market 模块 - 节点市场相关类型定义
  * 后端 IPC Channels:
  * - nodes_market.list: 获取可用节点列表
