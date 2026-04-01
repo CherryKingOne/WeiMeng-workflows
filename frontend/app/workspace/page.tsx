@@ -9,6 +9,7 @@ import { getDefaultCardName, NODE_NAME_DATA_KEY, type EditableCardType } from "@
 import { Minimap } from "@/features/workspace/components/minimap";
 import { HelpButton } from "@/features/workspace/components/help-button";
 import { StorageModal } from "@/features/workspace/components/storage-modal";
+import { ApiSettingsModal } from "@/features/workspace/components/api-settings-modal";
 import { useTheme } from "@/features/theme/theme-context";
 import { workflowService } from "@/core/api";
 import type { WorkflowNode, WorkflowEdge } from "@/core/api/types";
@@ -283,6 +284,7 @@ function WorkspaceContent() {
   });
 
   const [storageModalOpen, setStorageModalOpen] = useState(false);
+  const [apiSettingsModalOpen, setApiSettingsModalOpen] = useState(false);
 
   const handleContextMenu = useCallback((position: CanvasContextMenuPosition) => {
     setContextMenu({
@@ -301,6 +303,14 @@ function WorkspaceContent() {
 
   const closeStorageModal = useCallback(() => {
     setStorageModalOpen(false);
+  }, []);
+
+  const openApiSettingsModal = useCallback(() => {
+    setApiSettingsModalOpen(true);
+  }, []);
+
+  const closeApiSettingsModal = useCallback(() => {
+    setApiSettingsModalOpen(false);
   }, []);
 
   // 添加卡片到画布
@@ -499,6 +509,7 @@ function WorkspaceContent() {
         projectName={projectName}
         onProjectNameChange={handleProjectNameChange}
         onStorageClick={openStorageModal}
+        onApiSettingsClick={openApiSettingsModal}
         zoom={zoom}
       />
 
@@ -520,6 +531,11 @@ function WorkspaceContent() {
       <StorageModal
         isOpen={storageModalOpen}
         onClose={closeStorageModal}
+      />
+
+      <ApiSettingsModal
+        isOpen={apiSettingsModalOpen}
+        onClose={closeApiSettingsModal}
       />
     </main>
   );

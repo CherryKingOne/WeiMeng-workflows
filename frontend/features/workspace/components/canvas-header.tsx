@@ -9,6 +9,7 @@ interface CanvasHeaderProps {
   zoom?: number;
   onProjectNameChange?: (name: string) => void;
   onStorageClick?: () => void;
+  onApiSettingsClick?: () => void;
 }
 
 export function CanvasHeader({
@@ -16,6 +17,7 @@ export function CanvasHeader({
   zoom = 90,
   onProjectNameChange,
   onStorageClick,
+  onApiSettingsClick,
 }: CanvasHeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
@@ -191,7 +193,10 @@ export function CanvasHeader({
               </svg>
               <span>存储</span>
             </button>
-            <button className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}>
+            <button
+              onClick={onApiSettingsClick}
+              className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}
+            >
               <svg
                 className="w-4 h-4"
                 fill="none"
