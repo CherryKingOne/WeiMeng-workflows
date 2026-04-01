@@ -32,6 +32,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
+interface VideoMediaData {
+  base64?: string;
+  url?: string;
+  mime_type?: string;
+  file_name?: string;
+}
+
+function resolveMediaSource(media: VideoMediaData | null | undefined): string | null {
+  if (typeof media?.base64 === "string" && media.base64.length > 0) {
+    return media.base64;
+  }
+
+  if (typeof media?.url === "string" && media.url.length > 0) {
+    return media.url;
+  }
+
+  return null;
+}
+
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
   const iconPaths: Record<string, string> = {
@@ -96,31 +115,25 @@ export function VideoResultCard({
   onConnectionDragStart,
 }: VideoResultCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [progress, setProgress] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const cardName = getCardNameValue(data, "视频结果");
 
   // 解析视频数据
-  const videoData = data?.videoData as { base64?: string; mime_type?: string; file_name?: string } | undefined;
+  const videoData = data?.videoData as VideoMediaData | undefined;
+  const incomingVideoData = data?.incomingVideoData as VideoMediaData | undefined;
+  const previewVideoData = resolveMediaSource(videoData) ? videoData : incomingVideoData;
+  const previewVideoSrc = resolveMediaSource(previewVideoData);
 
   useEffect(() => {
     if (!isGenerating) {
       return;
     }
 
-    setProgress(0);
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          onGenerationComplete?.();
-          return 100;
-        }
-        return prev + 1.5; // 每80ms增加1.5%，约 5.3 秒完成
-      });
-    }, 80);
+    const timeoutId = window.setTimeout(() => {
+      onGenerationComplete?.();
+    }, 5400);
 
-    return () => clearInterval(interval);
+    return () => clearTimeout(timeoutId);
   }, [isGenerating, onGenerationComplete]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -186,10 +199,8 @@ export function VideoResultCard({
           {isGenerating ? (
             // 生成中：显示进度
             <>
-              {/* 灰白色进度填充 */}
               <div
-                className="absolute inset-0 bg-gradient-to-b from-[#c4c4c8] to-[#a8a8ac]"
-                style={{ clipPath: `inset(0 ${100 - progress}% 0 0)` }}
+                className="absolute inset-0 animate-pulse bg-gradient-to-br from-[#c4c4c8] via-[#b4b4b8] to-[#96969a]"
               />
 
               {/* 预览图标覆盖层 */}
@@ -230,11 +241,11 @@ export function VideoResultCard({
                 </div>
               </div>
             </>
-          ) : videoData?.base64 ? (
+          ) : previewVideoSrc ? (
             // 有视频数据：显示视频播放器
             <div className="w-full h-full flex flex-col">
               <video
-                src={videoData.base64}
+                src={previewVideoSrc}
                 className="w-full flex-1 object-contain"
                 controls
               />

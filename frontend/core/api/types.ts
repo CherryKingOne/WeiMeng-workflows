@@ -210,6 +210,7 @@ export interface FileBase64Result {
  * - models_config.list: 获取 registry + 数据库存储后的模型配置
  * - models_config.save: 持久化模型配置到 SQLite
  * - models_config.test_connection: 使用 base_url + /models 测试连接
+ * - models_config.generate_image: 调用已配置图片模型生成结果
  * ============================================================
  */
 
@@ -286,6 +287,38 @@ export interface ModelsConfigTestConnectionResponse {
   status_code: number | null;
   tested_url: string;
   message: string;
+}
+
+export interface ModelsConfigGenerateImageInputItem {
+  base64?: string;
+  url?: string;
+  file_name?: string;
+  mime_type?: string;
+  file_size?: number;
+}
+
+export interface ModelsConfigGenerateImageRequest {
+  key: string;
+  prompt: string;
+  input_images?: ModelsConfigGenerateImageInputItem[];
+  size?: string;
+  image_count?: number;
+}
+
+export interface ModelsConfigGenerateImageResultItem {
+  base64?: string | null;
+  url?: string | null;
+  mime_type: string;
+  file_name: string;
+  file_size: number;
+  source_url?: string | null;
+}
+
+export interface ModelsConfigGenerateImageResponse {
+  key: string;
+  request_id?: string | null;
+  image?: ModelsConfigGenerateImageResultItem | null;
+  images: ModelsConfigGenerateImageResultItem[];
 }
 
 /**

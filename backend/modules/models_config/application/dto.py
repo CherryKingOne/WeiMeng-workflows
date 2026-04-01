@@ -26,6 +26,17 @@ class TestModelConnectionCommand:
 
 
 @dataclass(slots=True)
+class GenerateImageCommand:
+    """Generate an image with the configured runtime model."""
+
+    key: str
+    prompt: str
+    input_images: list[dict[str, Any]] = field(default_factory=list)
+    size: str = "1024*1024"
+    image_count: int = 1
+
+
+@dataclass(slots=True)
 class ModelCategoryDTO:
     """Serializable tab metadata returned to the frontend."""
 
@@ -95,3 +106,35 @@ class TestModelConnectionResultDTO:
 
     def to_dict(self) -> dict[str, str | bool | int | None]:
         return asdict(self)
+
+
+@dataclass(slots=True)
+class GeneratedImageAssetDTO:
+    """Serializable generated image payload."""
+
+    base64: str | None = None
+    url: str | None = None
+    mime_type: str = "image/png"
+    file_name: str = "generated-image.png"
+    file_size: int = 0
+    source_url: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class GenerateImageResultDTO:
+    """Serializable response for runtime image generation."""
+
+    key: str
+    request_id: str | None = None
+    images: list[GeneratedImageAssetDTO] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "key": self.key,
+            "request_id": self.request_id,
+            "images": [item.to_dict() for item in self.images],
+            "image": self.images[0].to_dict() if self.images else None,
+        }

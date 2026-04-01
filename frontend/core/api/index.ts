@@ -119,6 +119,10 @@ export { modelsConfigService } from "./models-config-service";
 export type {
   ModelCategory,
   ModelsConfigCategoryItem,
+  ModelsConfigGenerateImageInputItem,
+  ModelsConfigGenerateImageRequest,
+  ModelsConfigGenerateImageResponse,
+  ModelsConfigGenerateImageResultItem,
   ModelsConfigModelItem,
   ModelsConfigListResponse,
   ModelsConfigSaveItem,

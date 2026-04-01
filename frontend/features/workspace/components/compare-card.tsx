@@ -20,7 +20,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 interface CompareImage {
-  base64: string;
+  base64?: string;
+  url?: string;
   fileName?: string;
 }
 
@@ -43,14 +44,30 @@ function parseCompareImage(value: unknown): CompareImage | null {
     return null;
   }
 
-  if (typeof value.base64 !== "string") {
+  const base64 = typeof value.base64 === "string" && value.base64.length > 0 ? value.base64 : undefined;
+  const url = typeof value.url === "string" && value.url.length > 0 ? value.url : undefined;
+
+  if (!base64 && !url) {
     return null;
   }
 
   return {
-    base64: value.base64,
+    base64,
+    url,
     fileName: typeof value.fileName === "string" ? value.fileName : undefined,
   };
+}
+
+function resolveMediaSource(image: CompareImage | null | undefined): string | null {
+  if (typeof image?.base64 === "string" && image.base64.length > 0) {
+    return image.base64;
+  }
+
+  if (typeof image?.url === "string" && image.url.length > 0) {
+    return image.url;
+  }
+
+  return null;
 }
 
 function CloseIcon({ className }: { className?: string }) {
@@ -100,8 +117,10 @@ export function CompareCard({
   const cardName = getCardNameValue(data, "图片对比");
   const originalImage = parseCompareImage(data?.originalImage);
   const generatedImage = parseCompareImage(data?.generatedImage);
-  const hasOriginalImage = Boolean(originalImage?.base64);
-  const hasGeneratedImage = Boolean(generatedImage?.base64);
+  const originalImageSrc = resolveMediaSource(originalImage);
+  const generatedImageSrc = resolveMediaSource(generatedImage);
+  const hasOriginalImage = Boolean(originalImageSrc);
+  const hasGeneratedImage = Boolean(generatedImageSrc);
   const hasImages = hasOriginalImage || hasGeneratedImage;
   const hasBothImages = hasOriginalImage && hasGeneratedImage;
 
@@ -200,7 +219,7 @@ export function CompareCard({
       <div className="absolute inset-2 rounded-lg overflow-hidden border border-zinc-800 bg-black">
         {/* 底层图片 (生成图 - 右侧) */}
         <img
-          src={generatedImage!.base64}
+          src={generatedImageSrc!}
           className="absolute inset-0 h-full w-full object-cover"
           alt="Generated"
           draggable={false}
@@ -214,7 +233,7 @@ export function CompareCard({
           }}
         >
           <img
-            src={originalImage!.base64}
+            src={originalImageSrc!}
             className="absolute inset-0 h-full w-full object-cover"
             alt="Original"
             draggable={false}
@@ -265,7 +284,7 @@ export function CompareCard({
       <div className="absolute inset-2 rounded-lg overflow-hidden border border-zinc-800 bg-black">
         {/* 显示已有的图片 */}
         <img
-          src={(hasOriginalImage ? originalImage : generatedImage)!.base64}
+          src={(hasOriginalImage ? originalImageSrc : generatedImageSrc)!}
           className="absolute inset-0 h-full w-full object-cover"
           alt="Connected"
           draggable={false}

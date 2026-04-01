@@ -993,6 +993,7 @@ export function CanvasContainer({
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   isGenerating={card.isGenerating}
                   onGenerationComplete={() => onGenerationComplete?.(card.id)}
+                  onConnectionDragStart={handleConnectionDragStart}
                 />
               </div>
             );
@@ -1030,6 +1031,7 @@ export function CanvasContainer({
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
                   isGenerating={card.isGenerating}
                   onGenerationComplete={() => onGenerationComplete?.(card.id)}
+                  onConnectionDragStart={handleConnectionDragStart}
                 />
               </div>
             );
@@ -1139,6 +1141,7 @@ export function CanvasContainer({
                   onDataChange={(data) => onCardDataChange?.(card.id, data)}
                   isFocused={focusedCardId === card.id}
                   onDragStart={(e) => handleCardDragStart(card.id, e)}
+                  onConnectionDragStart={handleConnectionDragStart}
                 />
               </div>
             );

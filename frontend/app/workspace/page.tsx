@@ -11,17 +11,20 @@ import { HelpButton } from "@/features/workspace/components/help-button";
 import { StorageModal } from "@/features/workspace/components/storage-modal";
 import { ApiSettingsModal } from "@/features/workspace/components/api-settings-modal";
 import { useTheme } from "@/features/theme/theme-context";
-import { runtimeLogService, workflowService } from "@/core/api";
+import { modelsConfigService, runtimeLogService, workflowService } from "@/core/api";
 import type { WorkflowNode, WorkflowEdge, RuntimeLogRecordRequest, RuntimeRequestType } from "@/core/api/types";
 
 interface FileBase64Data {
-  base64: string;
+  base64?: string;
+  url?: string;
   file_name?: string;
   mime_type?: string;
+  file_size?: number;
 }
 
 interface CompareImageData {
-  base64: string;
+  base64?: string;
+  url?: string;
   fileName?: string;
 }
 
@@ -30,58 +33,240 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseFileBase64Data(value: unknown): FileBase64Data | null {
-  if (!isRecord(value) || typeof value.base64 !== "string") {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const base64 = typeof value.base64 === "string" && value.base64.length > 0 ? value.base64 : undefined;
+  const url = typeof value.url === "string" && value.url.length > 0 ? value.url : undefined;
+
+  if (!base64 && !url) {
     return null;
   }
 
   return {
-    base64: value.base64,
+    base64,
+    url,
     file_name: typeof value.file_name === "string" ? value.file_name : undefined,
     mime_type: typeof value.mime_type === "string" ? value.mime_type : undefined,
+    file_size: typeof value.file_size === "number" ? value.file_size : undefined,
   };
 }
 
+function parseVideoBase64Data(value: unknown): FileBase64Data | null {
+  return parseFileBase64Data(value);
+}
+
+function parseVideoFrameImageSources(value: unknown): FileBase64Data[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is Record<string, unknown> => isRecord(item))
+    .filter((item) => typeof item.imageData === "string")
+    .map((item, index) => ({
+      base64: item.imageData as string,
+      mime_type: "image/jpeg",
+      file_name: typeof item.label === "string" ? `${item.label}.jpg` : `frame-${index + 1}.jpg`,
+    }));
+}
+
 function parseCompareImageData(value: unknown): CompareImageData | null {
-  if (!isRecord(value) || typeof value.base64 !== "string") {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const base64 = typeof value.base64 === "string" && value.base64.length > 0 ? value.base64 : undefined;
+  const url = typeof value.url === "string" && value.url.length > 0 ? value.url : undefined;
+
+  if (!base64 && !url) {
     return null;
   }
 
   return {
-    base64: value.base64,
+    base64,
+    url,
     fileName: typeof value.fileName === "string" ? value.fileName : undefined,
   };
 }
 
 function areCompareImagesEqual(left: CompareImageData | null, right: CompareImageData | null) {
-  return left?.base64 === right?.base64 && left?.fileName === right?.fileName;
+  return (
+    left?.base64 === right?.base64 &&
+    left?.url === right?.url &&
+    left?.fileName === right?.fileName
+  );
 }
 
 function buildCompareImageData(imageData: FileBase64Data): CompareImageData {
   return {
     base64: imageData.base64,
+    url: imageData.url,
     fileName: imageData.file_name,
   };
 }
 
-function syncCompareCards(cards: CardItem[], connections: Connection[]): CardItem[] {
+function areFileBase64DataEqual(left: FileBase64Data | null, right: FileBase64Data | null) {
+  return (
+    left?.base64 === right?.base64 &&
+    left?.url === right?.url &&
+    left?.file_name === right?.file_name &&
+    left?.mime_type === right?.mime_type &&
+    left?.file_size === right?.file_size
+  );
+}
+
+function areFileBase64DataListsEqual(left: FileBase64Data[], right: FileBase64Data[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((item, index) => areFileBase64DataEqual(item, right[index] ?? null));
+}
+
+function extractSelectedVideoFrameImages(card: CardItem): FileBase64Data[] {
+  const frameThumbnails = parseVideoFrameImageSources(card.data?.frameThumbnails);
+  const selectedFrameIds = Array.isArray(card.data?.selectedFrameIds)
+    ? card.data?.selectedFrameIds.filter((item): item is string => typeof item === "string")
+    : [];
+
+  if (frameThumbnails.length === 0) {
+    return [];
+  }
+
+  if (selectedFrameIds.length === 0) {
+    return frameThumbnails.slice(0, 1);
+  }
+
+  const selectedIdSet = new Set(selectedFrameIds);
+  const rawFrames = Array.isArray(card.data?.frameThumbnails)
+    ? card.data.frameThumbnails.filter((item): item is Record<string, unknown> => isRecord(item))
+    : [];
+
+  const selectedFrames = rawFrames
+    .filter((frame) => typeof frame.id === "string" && selectedIdSet.has(frame.id))
+    .map((frame, index) => ({
+      base64: frame.imageData as string,
+      mime_type: "image/jpeg",
+      file_name: typeof frame.label === "string" ? `${frame.label}.jpg` : `frame-${index + 1}.jpg`,
+    }));
+
+  return selectedFrames.length > 0 ? selectedFrames : frameThumbnails.slice(0, 1);
+}
+
+function extractImageOutputs(card: CardItem): FileBase64Data[] {
+  const directImage =
+    parseFileBase64Data(card.data?.imageData) ??
+    parseFileBase64Data(card.data?.incomingImageData);
+
+  if (directImage) {
+    return [directImage];
+  }
+
+  if (card.type === "video-frame") {
+    return extractSelectedVideoFrameImages(card);
+  }
+
+  return [];
+}
+
+function extractVideoOutput(card: CardItem): FileBase64Data | null {
+  return (
+    parseVideoBase64Data(card.data?.videoData) ??
+    parseVideoBase64Data(card.data?.incomingVideoData)
+  );
+}
+
+function extractConnectedInputImages(card: CardItem | undefined): FileBase64Data[] {
+  if (!card || !Array.isArray(card.data?.connectedInputImages)) {
+    return [];
+  }
+
+  return card.data.connectedInputImages
+    .map((item) => parseFileBase64Data(item))
+    .filter((item): item is FileBase64Data => Boolean(item));
+}
+
+function syncConnectedCardData(cards: CardItem[], connections: Connection[]): CardItem[] {
   const cardsById = new Map(cards.map((card) => [card.id, card]));
   let hasChanges = false;
 
   const nextCards = cards.map((card) => {
-    if (card.type !== "compare") {
-      return card;
-    }
-
-    const incomingImages = connections
+    const incomingCards = connections
       .filter((connection) => connection.toId === card.id)
       .map((connection) => cardsById.get(connection.fromId))
-      .map((sourceCard) => parseFileBase64Data(sourceCard?.data?.imageData))
+      .filter((candidate): candidate is CardItem => Boolean(candidate));
+    const incomingImages = incomingCards.flatMap(extractImageOutputs);
+    const incomingPrimaryImage = incomingImages[0] ?? null;
+    const incomingVideo = incomingCards
+      .map(extractVideoOutput)
+      .find((candidate): candidate is FileBase64Data => Boolean(candidate)) ?? null;
+
+    if (card.type !== "compare") {
+      const nextData = { ...(card.data ?? {}) };
+      let changed = false;
+
+      const currentIncomingImage = parseFileBase64Data(card.data?.incomingImageData);
+      const currentIncomingVideo = parseVideoBase64Data(card.data?.incomingVideoData);
+      const currentConnectedInputImages = Array.isArray(card.data?.connectedInputImages)
+        ? card.data.connectedInputImages
+            .map((item) => parseFileBase64Data(item))
+            .filter((item): item is FileBase64Data => Boolean(item))
+        : [];
+
+      if (card.type === "image-generation" || card.type === "video-generation") {
+        if (!areFileBase64DataListsEqual(currentConnectedInputImages, incomingImages)) {
+          if (incomingImages.length > 0) {
+            nextData.connectedInputImages = incomingImages;
+          } else {
+            delete nextData.connectedInputImages;
+          }
+          changed = true;
+        }
+      }
+
+      if (card.type === "image-result" || card.type === "preview") {
+        if (!areFileBase64DataEqual(currentIncomingImage, incomingPrimaryImage)) {
+          if (incomingPrimaryImage) {
+            nextData.incomingImageData = incomingPrimaryImage;
+          } else {
+            delete nextData.incomingImageData;
+          }
+          changed = true;
+        }
+      }
+
+      if (card.type === "video-result" || card.type === "preview") {
+        if (!areFileBase64DataEqual(currentIncomingVideo, incomingVideo)) {
+          if (incomingVideo) {
+            nextData.incomingVideoData = incomingVideo;
+          } else {
+            delete nextData.incomingVideoData;
+          }
+          changed = true;
+        }
+      }
+
+      if (!changed) {
+        return card;
+      }
+
+      hasChanges = true;
+      return {
+        ...card,
+        data: nextData,
+      };
+    }
+
+    const compareIncomingImages = incomingCards
+      .map((sourceCard) => parseFileBase64Data(sourceCard.data?.imageData) ?? parseFileBase64Data(sourceCard.data?.incomingImageData))
       .filter((imageData): imageData is FileBase64Data => Boolean(imageData))
       .slice(0, 2)
       .map(buildCompareImageData);
 
-    const nextOriginalImage = incomingImages[0] ?? null;
-    const nextGeneratedImage = incomingImages[1] ?? null;
+    const nextOriginalImage = compareIncomingImages[0] ?? null;
+    const nextGeneratedImage = compareIncomingImages[1] ?? null;
     const currentOriginalImage = parseCompareImageData(card.data?.originalImage);
     const currentGeneratedImage = parseCompareImageData(card.data?.generatedImage);
 
@@ -116,8 +301,8 @@ function syncCompareCards(cards: CardItem[], connections: Connection[]): CardIte
   return hasChanges ? nextCards : cards;
 }
 
-function hasBase64Payload(value: unknown): boolean {
-  return isRecord(value) && typeof value.base64 === "string" && value.base64.length > 0;
+function hasMediaPayload(value: unknown): boolean {
+  return Boolean(parseFileBase64Data(value));
 }
 
 function getNormalizedCardType(type: CardItem["type"]): EditableCardType {
@@ -145,12 +330,12 @@ function cardHasImageInput(card: CardItem | undefined): boolean {
     return false;
   }
 
-  if (card.type === "image" || card.type === "image-result") {
-    return hasBase64Payload(card.data?.imageData);
+  if (card.type === "image" || card.type === "image-result" || card.type === "preview") {
+    return hasMediaPayload(card.data?.imageData) || hasMediaPayload(card.data?.incomingImageData);
   }
 
   if (card.type === "video-frame") {
-    return true;
+    return extractSelectedVideoFrameImages(card).length > 0;
   }
 
   return false;
@@ -211,6 +396,7 @@ function WorkspaceContent() {
   const isInitialLoad = useRef(true);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingGenerationRequestsRef = useRef<Map<string, PendingGenerationRequest>>(new Map());
+  const connectionsRef = useRef<Connection[]>([]);
 
   const buildCardData = useCallback((type: EditableCardType) => ({
     [NODE_NAME_DATA_KEY]: getDefaultCardName(type),
@@ -290,6 +476,7 @@ function WorkspaceContent() {
   // 加载工作流数据
   useEffect(() => {
     if (!workflowId) return;
+    const pendingRequests = pendingGenerationRequestsRef.current;
 
     const loadWorkflow = async () => {
       if (!workflowService.isAvailable()) return;
@@ -302,7 +489,7 @@ function WorkspaceContent() {
         
         const loadedCards = convertNodesToCards(workflow.nodes ?? []);
         const loadedConnections = convertEdgesToConnections(workflow.edges ?? []);
-        setCards(syncCompareCards(loadedCards, loadedConnections));
+        setCards(syncConnectedCardData(loadedCards, loadedConnections));
         setConnections(loadedConnections);
         setGeneratingCards(new Set());
         recordRuntimeLog({
@@ -332,15 +519,19 @@ function WorkspaceContent() {
         clearTimeout(saveTimeoutRef.current);
       }
 
-      for (const pendingRequest of pendingGenerationRequestsRef.current.values()) {
+      for (const pendingRequest of pendingRequests.values()) {
         if (pendingRequest.processingTimerId !== null) {
           window.clearTimeout(pendingRequest.processingTimerId);
         }
       }
 
-      pendingGenerationRequestsRef.current.clear();
+      pendingRequests.clear();
     };
   }, [recordRuntimeLog, workflowId]);
+
+  useEffect(() => {
+    connectionsRef.current = connections;
+  }, [connections]);
 
   useEffect(() => {
     if (!workflowId || isInitialLoad.current) {
@@ -513,7 +704,7 @@ function WorkspaceContent() {
     }
 
     const nextConnections = connections.filter((conn) => conn.fromId !== id && conn.toId !== id);
-    setCards((prev) => syncCompareCards(prev.filter((card) => card.id !== id), nextConnections));
+    setCards((prev) => syncConnectedCardData(prev.filter((card) => card.id !== id), nextConnections));
     // 同时移除相关的连接线
     setConnections(nextConnections);
     if (focusedCardId === id) {
@@ -541,7 +732,7 @@ function WorkspaceContent() {
 
   const handleCardDataChange = useCallback((id: string, data: Record<string, unknown>) => {
     setCards((prev) =>
-      syncCompareCards(prev.map((card) =>
+      syncConnectedCardData(prev.map((card) =>
         card.id === id
           ? { ...card, data: { ...(card.data ?? {}), ...data } }
           : card
@@ -570,11 +761,90 @@ function WorkspaceContent() {
       return nextConnections;
     });
 
-    setCards((prevCards) => syncCompareCards(prevCards, nextConnections));
+    setCards((prevCards) => syncConnectedCardData(prevCards, nextConnections));
   }, []);
 
+  const finalizeGenerationRequest = useCallback((
+    resultCardId: string,
+    options?: {
+      imageData?: FileBase64Data | null;
+      generatedImages?: FileBase64Data[];
+      errorMessage?: string;
+      providerRequestId?: string | null;
+    }
+  ) => {
+    const pendingRequest = pendingGenerationRequestsRef.current.get(resultCardId);
+    if (pendingRequest && pendingRequest.processingTimerId !== null) {
+      window.clearTimeout(pendingRequest.processingTimerId);
+    }
+
+    const generationCardId = pendingRequest?.generationCardId;
+    if (generationCardId) {
+      setGeneratingCards((prev) => {
+        const next = new Set(prev);
+        next.delete(generationCardId);
+        return next;
+      });
+    }
+
+    setCards((prev) => {
+      const nextCards = prev.map((card) => {
+        if (card.id !== resultCardId) {
+          return card;
+        }
+
+        const nextData = { ...(card.data ?? {}) };
+        if (card.type === "image-result") {
+          if (options?.imageData) {
+            nextData.imageData = options.imageData;
+          }
+
+          if (options?.generatedImages && options.generatedImages.length > 0) {
+            nextData.generatedImages = options.generatedImages;
+          }
+
+          if (options?.errorMessage) {
+            nextData.generationError = options.errorMessage;
+          } else {
+            delete nextData.generationError;
+          }
+        }
+
+        return {
+          ...card,
+          isGenerating: false,
+          data: nextData,
+        };
+      });
+
+      return syncConnectedCardData(nextCards, connectionsRef.current);
+    });
+
+    if (pendingRequest) {
+      recordRuntimeLog({
+        category: "request",
+        event_type: "request_completed",
+        level: options?.errorMessage ? "error" : "success",
+        message: options?.errorMessage
+          ? `${getRequestTypeLabel(pendingRequest.requestType)}请求失败: ${options.errorMessage}`
+          : `${getRequestTypeLabel(pendingRequest.requestType)}结果已返回，结果卡片已更新。`,
+        workflow_id: workflowId ?? undefined,
+        card_id: pendingRequest.generationCardId,
+        request_id: pendingRequest.requestId,
+        request_type: pendingRequest.requestType,
+        model_name: pendingRequest.modelName,
+        details: {
+          generation_card_id: pendingRequest.generationCardId,
+          result_card_id: resultCardId,
+          provider_request_id: options?.providerRequestId ?? undefined,
+        },
+      });
+      pendingGenerationRequestsRef.current.delete(resultCardId);
+    }
+  }, [recordRuntimeLog, workflowId]);
+
   // 处理生成按钮点击（从 ImageGenerationCard 触发）
-  const handleGenerate = useCallback((generationCardId: string) => {
+  const handleGenerate = useCallback(async (generationCardId: string) => {
     const generationCard = cards.find((card) => card.id === generationCardId);
     if (!generationCard) {
       console.log("未找到生成卡片:", generationCardId);
@@ -609,14 +879,11 @@ function WorkspaceContent() {
     };
 
     setCards((prevCards) => [...prevCards, resultCard]);
-    
     setFocusedCardId(resultCardId);
-    
-    // 添加连接关系
+    connectionsRef.current = [...connectionsRef.current, { fromId: generationCardId, toId: resultCardId }];
     setConnections((prev) => [...prev, { fromId: generationCardId, toId: resultCardId }]);
-    
-    // 标记为正在生成
     setGeneratingCards((prev) => new Set(prev).add(generationCardId));
+
     const resultCardName = getCardDisplayName(resultCard);
     recordRuntimeLog({
       category: "card",
@@ -680,52 +947,84 @@ function WorkspaceContent() {
       resultCardId,
       processingTimerId,
     });
-  }, [buildCardData, cards, connections, recordRuntimeLog, workflowId]);
+
+    if (isVideoGeneration) {
+      return;
+    }
+
+    const modelKey =
+      typeof generationCard.data?.selectedModelKey === "string"
+        ? generationCard.data.selectedModelKey.trim()
+        : "";
+    const prompt = typeof generationCard.data?.prompt === "string" ? generationCard.data.prompt : "";
+    const selectedSize =
+      typeof generationCard.data?.selectedSize === "string" && generationCard.data.selectedSize.trim()
+        ? generationCard.data.selectedSize.trim()
+        : "1024*1024";
+    const imageCountRaw =
+      typeof generationCard.data?.selectedImageCount === "string"
+        ? generationCard.data.selectedImageCount
+        : "1";
+    const imageCount = Number.parseInt(imageCountRaw, 10);
+    const inputImages = extractConnectedInputImages(generationCard);
+
+    if (!modelsConfigService.isAvailable()) {
+      finalizeGenerationRequest(resultCardId, {
+        errorMessage: "Desktop bridge 未初始化，无法调用图片模型。",
+      });
+      return;
+    }
+
+    if (!modelKey) {
+      finalizeGenerationRequest(resultCardId, {
+        errorMessage: "当前图片卡片未选择有效模型，请重新选择后再试。",
+      });
+      return;
+    }
+
+    if (!prompt.trim() && inputImages.length === 0) {
+      finalizeGenerationRequest(resultCardId, {
+        errorMessage: "请输入提示词，或至少连接一张输入图片后再生成。",
+      });
+      return;
+    }
+
+    try {
+      const response = await modelsConfigService.generateImage({
+        key: modelKey,
+        prompt,
+        input_images: inputImages,
+        size: selectedSize,
+        image_count: Number.isFinite(imageCount) && imageCount > 0 ? imageCount : 1,
+      });
+      const generatedImages = response.images
+        .map((item) => parseFileBase64Data(item))
+        .filter((item): item is FileBase64Data => Boolean(item));
+      const primaryImage =
+        parseFileBase64Data(response.image) ??
+        generatedImages[0] ??
+        null;
+
+      if (!primaryImage) {
+        throw new Error("模型返回成功，但结果中没有可渲染的图片。");
+      }
+
+      finalizeGenerationRequest(resultCardId, {
+        imageData: primaryImage,
+        generatedImages,
+        providerRequestId: response.request_id ?? null,
+      });
+    } catch (error) {
+      finalizeGenerationRequest(resultCardId, {
+        errorMessage: error instanceof Error ? error.message : "图片生成失败，请稍后重试。",
+      });
+    }
+  }, [buildCardData, cards, connections, finalizeGenerationRequest, recordRuntimeLog, workflowId]);
 
   // 处理生成完成
   const handleGenerationComplete = useCallback((resultCardId: string) => {
-    const pendingRequest = pendingGenerationRequestsRef.current.get(resultCardId);
-    if (pendingRequest && pendingRequest.processingTimerId !== null) {
-      window.clearTimeout(pendingRequest.processingTimerId);
-    }
-
-    // 找到结果卡片对应的生成卡片
-    const connection = connections.find(c => c.toId === resultCardId);
-    if (connection) {
-      // 从生成中集合移除
-      setGeneratingCards((prev) => {
-        const next = new Set(prev);
-        next.delete(connection.fromId);
-        return next;
-      });
-    }
-    
-    // 更新结果卡片状态
-    setCards((prev) =>
-      prev.map((card) =>
-        card.id === resultCardId ? { ...card, isGenerating: false } : card
-      )
-    );
-
-    if (pendingRequest) {
-      recordRuntimeLog({
-        category: "request",
-        event_type: "request_completed",
-        level: "success",
-        message: `${getRequestTypeLabel(pendingRequest.requestType)}结果已返回，结果卡片已更新。`,
-        workflow_id: workflowId ?? undefined,
-        card_id: pendingRequest.generationCardId,
-        request_id: pendingRequest.requestId,
-        request_type: pendingRequest.requestType,
-        model_name: pendingRequest.modelName,
-        details: {
-          generation_card_id: pendingRequest.generationCardId,
-          result_card_id: resultCardId,
-        },
-      });
-      pendingGenerationRequestsRef.current.delete(resultCardId);
-    }
-  }, [connections, recordRuntimeLog, workflowId]);
+    finalizeGenerationRequest(resultCardId);
+  }, [finalizeGenerationRequest]);
 
   // 处理侧边栏视频点击 - 添加视频生成卡片
   const handleVideoClick = useCallback(() => {

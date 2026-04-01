@@ -29,8 +29,27 @@
  * ============================================================================
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
+
+interface ImageMediaData {
+  base64?: string;
+  url?: string;
+  mime_type?: string;
+  file_name?: string;
+}
+
+function resolveMediaSource(media: ImageMediaData | null | undefined): string | null {
+  if (typeof media?.base64 === "string" && media.base64.length > 0) {
+    return media.base64;
+  }
+
+  if (typeof media?.url === "string" && media.url.length > 0) {
+    return media.url;
+  }
+
+  return null;
+}
 
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
@@ -89,37 +108,19 @@ export function ImageResultCard({
   isFocused = false,
   onDragStart,
   isGenerating = false,
-  onGenerationComplete,
   data,
   onDataChange,
   onConnectionDragStart,
 }: ImageResultCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [progress, setProgress] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const cardName = getCardNameValue(data, "图片结果");
 
   // 解析图片数据
-  const imageData = data?.imageData as { base64?: string; mime_type?: string; file_name?: string } | undefined;
-
-  // 生成进度动画
-  useEffect(() => {
-    if (isGenerating) {
-      setProgress(0);
-      const interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            onGenerationComplete?.();
-            return 100;
-          }
-          return prev + 1.5; // 每80ms增加1.5%，约 5.3 秒完成
-        });
-      }, 80);
-
-      return () => clearInterval(interval);
-    }
-  }, [isGenerating, onGenerationComplete]);
+  const imageData = data?.imageData as ImageMediaData | undefined;
+  const incomingImageData = data?.incomingImageData as ImageMediaData | undefined;
+  const previewImageData = resolveMediaSource(imageData) ? imageData : incomingImageData;
+  const previewImageSrc = resolveMediaSource(previewImageData);
 
   // 处理拖拽开始
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -187,12 +188,8 @@ export function ImageResultCard({
           {isGenerating ? (
             // 生成中：显示进度
             <>
-              {/* 进度填充 */}
               <div
-                className="absolute inset-0 bg-gradient-to-b from-[#c4c4c8] to-[#a8a8ac]"
-                style={{
-                  clipPath: `inset(0 ${100 - progress}% 0 0)`,
-                }}
+                className="absolute inset-0 animate-pulse bg-gradient-to-br from-[#c4c4c8] via-[#b4b4b8] to-[#96969a]"
               />
               
               {/* 预览图标覆盖层 */}
@@ -227,11 +224,11 @@ export function ImageResultCard({
               </div>
 
             </>
-          ) : imageData?.base64 ? (
+          ) : previewImageSrc ? (
             // 有图片数据：显示图片
             <img
-              src={imageData.base64}
-              alt={imageData.file_name || "生成的图片"}
+              src={previewImageSrc}
+              alt={previewImageData?.file_name || "生成的图片"}
               className="w-full h-full object-contain"
             />
           ) : (

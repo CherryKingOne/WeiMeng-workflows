@@ -32,6 +32,24 @@
 import { useCallback, useRef } from "react";
 import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
+interface PreviewMediaData {
+  base64?: string;
+  url?: string;
+  file_name?: string;
+}
+
+function resolveMediaSource(media: PreviewMediaData | null | undefined): string | null {
+  if (typeof media?.base64 === "string" && media.base64.length > 0) {
+    return media.base64;
+  }
+
+  if (typeof media?.url === "string" && media.url.length > 0) {
+    return media.url;
+  }
+
+  return null;
+}
+
 function LucideIcon({ name, className }: { name: string; className?: string }) {
   const iconPaths: Record<string, string> = {
     x: "M18 6L6 18M6 6l12 12",
@@ -61,6 +79,7 @@ interface PreviewCardProps {
   onDragStart?: (e: React.MouseEvent) => void;
   data?: Record<string, unknown>;
   onDataChange?: (data: Record<string, unknown>) => void;
+  onConnectionDragStart?: (id: string, e: React.MouseEvent) => void;
 }
 
 export function PreviewCard({
@@ -71,9 +90,18 @@ export function PreviewCard({
   onDragStart,
   data,
   onDataChange,
+  onConnectionDragStart,
 }: PreviewCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const cardName = getCardNameValue(data, "预览节点");
+  const imageData = data?.imageData as PreviewMediaData | undefined;
+  const incomingImageData = data?.incomingImageData as PreviewMediaData | undefined;
+  const videoData = data?.videoData as PreviewMediaData | undefined;
+  const incomingVideoData = data?.incomingVideoData as PreviewMediaData | undefined;
+  const previewVideo = resolveMediaSource(videoData) ? videoData : incomingVideoData;
+  const previewImage = resolveMediaSource(imageData) ? imageData : incomingImageData;
+  const previewVideoSrc = resolveMediaSource(previewVideo);
+  const previewImageSrc = resolveMediaSource(previewImage);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     onDragStart?.(e);
@@ -91,7 +119,12 @@ export function PreviewCard({
   const handleUtilityButtonClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     onFocus?.(id);
-  }, [id, onFocus]);
+    onConnectionDragStart?.(id, e);
+  }, [id, onConnectionDragStart, onFocus]);
+
+  const stopPropagation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
 
   return (
     <div
@@ -123,48 +156,65 @@ export function PreviewCard({
           }`}
         />
 
-        <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="mb-4"
-            aria-hidden="true"
-          >
-            <path
-              d="M12 5C7 5 2.73 8.11 1 12C2.73 15.89 7 19 12 19C17 19 21.27 15.89 23 12C21.27 8.11 17 5 12 5Z"
-              stroke="#4a4a4c"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        <div className="absolute inset-0 rounded-[14px] overflow-hidden">
+          {previewVideoSrc ? (
+            <video
+              src={previewVideoSrc}
+              className="h-full w-full object-contain"
+              controls
             />
-            <circle
-              cx="12"
-              cy="12"
-              r="3.5"
-              stroke="#4a4a4c"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          ) : previewImageSrc ? (
+            <img
+              src={previewImageSrc}
+              alt={previewImage?.file_name || "预览图片"}
+              className="h-full w-full object-contain"
             />
-            <circle cx="12" cy="12" r="1.5" fill="#4a4a4c" />
-          </svg>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+              <svg
+                width="36"
+                height="36"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="mb-4"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 5C7 5 2.73 8.11 1 12C2.73 15.89 7 19 12 19C17 19 21.27 15.89 23 12C21.27 8.11 17 5 12 5Z"
+                  stroke="#4a4a4c"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="3.5"
+                  stroke="#4a4a4c"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="12" cy="12" r="1.5" fill="#4a4a4c" />
+              </svg>
 
-          <p className="text-[15px] font-normal tracking-[0.05em] text-[#999999]">
-            连接 AI 绘图 / AI 视频 / 可灵动作迁移 节点
-          </p>
+              <p className="text-[15px] font-normal tracking-[0.05em] text-[#999999]">
+                连接图片、视频或结果节点进行预览
+              </p>
 
-          <p className="mt-3 text-[13px] tracking-[0.05em] text-[#666666]">
-            或从历史记录发送到此处进行预览
-          </p>
+              <p className="mt-3 text-[13px] tracking-[0.05em] text-[#666666]">
+                当前会显示上游连接传来的最新内容
+              </p>
+            </div>
+          )}
         </div>
 
         <button
           type="button"
           className="absolute -right-[22px] top-1/2 z-20 flex h-[44px] w-[44px] -translate-y-1/2 items-center justify-center rounded-full border border-[#555] bg-[#161618] text-white opacity-0 transition-all duration-150 group-hover:opacity-100 hover:bg-[#222]"
-          onClick={handleUtilityButtonClick}
+          onMouseDown={handleUtilityButtonClick}
+          onClick={stopPropagation}
           aria-label="添加连接"
         >
           <LucideIcon name="plus" className="h-6 w-6" />

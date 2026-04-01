@@ -11,6 +11,8 @@
 
 import { getDesktopBridge } from "../electron/bridge";
 import type {
+  ModelsConfigGenerateImageRequest,
+  ModelsConfigGenerateImageResponse,
   IPCResponse,
   ModelsConfigListResponse,
   ModelsConfigSaveRequest,
@@ -82,6 +84,26 @@ class ModelsConfigService {
     }
 
     return response.data!;
+  }
+
+  async generateImage(
+    params: ModelsConfigGenerateImageRequest
+  ): Promise<ModelsConfigGenerateImageResponse> {
+    const bridge = this.getBridge();
+    if (!bridge) {
+      throw new Error("Desktop bridge 未初始化，请确保 Electron 已启动");
+    }
+
+    const response = await bridge.invoke<IPCResponse<ModelsConfigGenerateImageResponse>>(
+      "models_config.generate_image",
+      params
+    );
+
+    if (response.status === "error") {
+      throw new Error(response.message || "图片生成失败");
+    }
+
+    return response.data || { key: params.key, images: [], image: null, request_id: null };
   }
 
   isAvailable(): boolean {
