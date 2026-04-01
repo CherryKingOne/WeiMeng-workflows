@@ -285,6 +285,7 @@ export type RuntimeLogEventType =
   | "project_entered"
   | "project_renamed"
   | "project_exited"
+  | "project_deleted"
   | "card_added"
   | "request_started"
   | "request_processing"

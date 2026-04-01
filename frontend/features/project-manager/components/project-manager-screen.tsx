@@ -169,7 +169,7 @@ export function ProjectManagerScreen() {
    * 点击删除按钮时调用
    * 调用 workflowService.delete() 删除工作流
    */
-  const handleDeleteWorkflow = useCallback(async (projectId: string, _projectName: string) => {
+  const handleDeleteWorkflow = useCallback(async (projectId: string, projectName: string) => {
     if (!isBridgeAvailable) return;
 
     if (!confirm("确定要删除这个项目吗？此操作无法撤销。")) {
@@ -178,11 +178,21 @@ export function ProjectManagerScreen() {
 
     try {
       await workflowService.delete({ workflow_id: projectId });
+      recordRuntimeLog({
+        category: "project",
+        event_type: "project_deleted",
+        level: "warning",
+        message: `删除项目"${projectName}"，项目ID: ${projectId}`,
+        workflow_id: projectId,
+        details: {
+          project_name: projectName,
+        },
+      });
       setWorkflows((prev) => prev.filter((wf) => wf.workflow_id !== projectId));
     } catch (error) {
       console.error("删除工作流失败:", error);
     }
-  }, []);
+  }, [isBridgeAvailable, recordRuntimeLog]);
 
   /**
    * ============================================================

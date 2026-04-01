@@ -45,10 +45,14 @@ Python IPC 服务器 - 进程间通信桥接
 
 import sys
 import json
-import threading
 from typing import Any
 from core.container import ApplicationContainer, build_container
 from core.ipc_router import IPCRouter
+from modules.runtime_logs.application.dto import RecordRuntimeLogCommand
+from modules.runtime_logs.application.use_cases import RecordRuntimeLogUseCase
+from modules.runtime_logs.presentation.ipc_handlers import (
+    register_handlers as register_runtime_logs_handlers,
+)
 from modules.workflow_engine.presentation.ipc_handlers import (
     register_handlers as register_workflow_handlers,
 )
@@ -70,6 +74,7 @@ class IPCServer:
         self.container = build_container()
         self.router = IPCRouter()
         self._register_handlers()
+        self._register_runtime_log_event_forwarders()
         self.running = False
 
     def _register_handlers(self):
@@ -78,8 +83,53 @@ class IPCServer:
         register_settings_handlers(self.router, self.container)
         register_nodes_market_handlers(self.router, self.container)
         register_models_config_handlers(self.router, self.container)
+        register_runtime_logs_handlers(self.router, self.container)
         print("[IPC Server] 所有 handler 注册完成", flush=True)
         print(f"[IPC Server] 可用路由: {self.router.list_routes()}", flush=True)
+
+    def _register_runtime_log_event_forwarders(self) -> None:
+        """Forward runtime log events to Electron main through stdout."""
+
+        self.container.event_bus.subscribe(
+            "runtime_logs.appended",
+            lambda payload: self._emit_event("runtime_logs.appended", payload),
+        )
+        self.container.event_bus.subscribe(
+            "runtime_logs.cleared",
+            lambda payload: self._emit_event("runtime_logs.cleared", payload),
+        )
+
+    def _emit_event(self, event_name: str, payload: dict[str, Any]) -> None:
+        """Emit a structured event line to stdout for Electron to consume."""
+        print(
+            json.dumps(
+                {"event": event_name, "payload": payload},
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
+
+    def _record_lifecycle_log(
+        self,
+        *,
+        event_type: str,
+        level: str,
+        message: str,
+    ) -> None:
+        """Record lifecycle events into the runtime log store."""
+        use_case = RecordRuntimeLogUseCase(
+            self.container.runtime_log_repository,
+            self.container.event_bus,
+        )
+        use_case.execute(
+            RecordRuntimeLogCommand(
+                category="lifecycle",
+                event_type=event_type,
+                level=level,
+                message=message,
+                details={"source": "ipc_server"},
+            )
+        )
 
     def handle_request(self, request: dict[str, Any]) -> dict[str, Any]:
         """处理单个请求"""
@@ -138,14 +188,26 @@ class IPCServer:
     def run(self):
         """运行 IPC 服务器"""
         self.running = True
+        self._record_lifecycle_log(
+            event_type="startup",
+            level="success",
+            message="程序启动，运行日志服务已就绪。",
+        )
         print("[IPC Server] 启动成功，等待请求...", flush=True)
 
-        # 逐行读取 stdin
-        for line in sys.stdin:
-            if not self.running:
-                break
-            if line.strip():
-                self.process_line(line)
+        try:
+            # 逐行读取 stdin
+            for line in sys.stdin:
+                if not self.running:
+                    break
+                if line.strip():
+                    self.process_line(line)
+        finally:
+            self._record_lifecycle_log(
+                event_type="shutdown",
+                level="warning",
+                message="程序退出，运行日志服务已结束。",
+            )
 
 
 def main():

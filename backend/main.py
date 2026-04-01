@@ -11,6 +11,9 @@ from modules.models_config.presentation.ipc_handlers import (
 from modules.settings.presentation.ipc_handlers import (
     register_handlers as register_settings_handlers,
 )
+from modules.runtime_logs.presentation.ipc_handlers import (
+    register_handlers as register_runtime_logs_handlers,
+)
 from modules.workflow_engine.presentation.ipc_handlers import (
     register_handlers as register_workflow_handlers,
 )
@@ -25,6 +28,7 @@ def create_application() -> tuple[ApplicationContainer, IPCRouter]:
     register_nodes_market_handlers(router, container)
     register_settings_handlers(router, container)
     register_models_config_handlers(router, container)
+    register_runtime_logs_handlers(router, container)
 
     return container, router
 

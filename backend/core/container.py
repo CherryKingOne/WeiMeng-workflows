@@ -6,6 +6,7 @@ from core.config import Settings, load_settings
 from core.event_bus import EventBus
 from modules.nodes_market.infrastructure.file_storage import NodeAssetStorage
 from modules.nodes_market.infrastructure.sqlite_repo import NodeMarketSqliteRepository
+from modules.runtime_logs.infrastructure.in_memory_repo import InMemoryRuntimeLogRepository
 from modules.settings.infrastructure.file_storage import SettingsFileStorage
 from modules.settings.infrastructure.sqlite_repo import SettingsSqliteRepository
 from modules.workflow_engine.infrastructure.file_storage import WorkflowFileStorage
@@ -22,6 +23,7 @@ class ApplicationContainer:
     workflow_storage: WorkflowFileStorage = field(init=False)
     node_market_repository: NodeMarketSqliteRepository = field(init=False)
     node_asset_storage: NodeAssetStorage = field(init=False)
+    runtime_log_repository: InMemoryRuntimeLogRepository = field(init=False)
     settings_repository: SettingsSqliteRepository = field(init=False)
     settings_storage: SettingsFileStorage = field(init=False)
 
@@ -34,6 +36,8 @@ class ApplicationContainer:
         self.node_asset_storage = NodeAssetStorage(data_dir / "node_assets")
         self.node_market_repository = NodeMarketSqliteRepository()
 
+        self.runtime_log_repository = InMemoryRuntimeLogRepository()
+
         self.settings_storage = SettingsFileStorage(data_dir / "settings")
         self.settings_repository = SettingsSqliteRepository()
 
@@ -41,4 +45,3 @@ class ApplicationContainer:
 def build_container() -> ApplicationContainer:
     """Create the application container using environment-backed settings."""
     return ApplicationContainer(settings=load_settings())
-
