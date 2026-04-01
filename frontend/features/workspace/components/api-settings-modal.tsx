@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { settingsService } from "@/core/api";
 
-type ApiTab = "chat" | "image" | "video" | "music";
+type ApiTab = "chat" | "image" | "video";
 
 interface ApiSettingsModalProps {
   isOpen: boolean;
@@ -34,7 +34,6 @@ const API_TABS: Array<{ key: ApiTab; label: string; count?: number }> = [
   { key: "chat", label: "Chat", count: 20 },
   { key: "image", label: "Image", count: 14 },
   { key: "video", label: "Video", count: 29 },
-  { key: "music", label: "Music", count: 6 },
 ];
 
 const MODEL_DEFINITIONS: ApiModelDefinition[] = [
@@ -91,24 +90,6 @@ const MODEL_DEFINITIONS: ApiModelDefinition[] = [
     badgeClassName: "bg-[#3b224c] text-[#c78df6]",
     defaultModelId: "sora-2-pro",
     defaultBaseUrl: "https://ai.comfly.chat",
-  },
-  {
-    key: "suno_v4",
-    name: "Suno v4",
-    tab: "music",
-    badgeLabel: "Music",
-    badgeClassName: "bg-[#1c2b20] text-emerald-300",
-    defaultModelId: "suno-v4",
-    defaultBaseUrl: "https://api.comfly.chat/v1",
-  },
-  {
-    key: "udio_1_5",
-    name: "Udio 1.5",
-    tab: "music",
-    badgeLabel: "Music",
-    badgeClassName: "bg-[#1c2b20] text-emerald-300",
-    defaultModelId: "udio-1.5",
-    defaultBaseUrl: "https://api.comfly.chat/v1",
   },
 ];
 
