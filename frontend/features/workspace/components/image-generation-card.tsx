@@ -29,7 +29,8 @@
  * ============================================================================
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { modelsConfigService, type ModelsConfigModelItem } from "@/core/api";
 import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
 // Lucide 图标组件
@@ -84,17 +85,24 @@ export function ImageGenerationCard({
   onDataChange,
 }: ImageGenerationCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
 
   const [prompt, setPrompt] = useState("");
   const [selectedModel, setSelectedModel] = useState("Qwen Image Edit");
+  const [selectedModelKey, setSelectedModelKey] = useState("");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isCollapsedEditorOpen, setIsCollapsedEditorOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [imageModels, setImageModels] = useState<ModelsConfigModelItem[]>([]);
+  const [isModelsLoading, setIsModelsLoading] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const cardName = getCardNameValue(data, "生成图片");
 
   useEffect(() => {
     setPrompt(typeof data?.prompt === "string" ? data.prompt : "");
     setSelectedModel(typeof data?.selectedModel === "string" ? data.selectedModel : "Qwen Image Edit");
+    setSelectedModelKey(typeof data?.selectedModelKey === "string" ? data.selectedModelKey : "");
     setIsCollapsed(Boolean(data?.isCollapsed));
     setIsCollapsedEditorOpen(Boolean(data?.isCollapsedEditorOpen));
   }, [data]);
@@ -102,16 +110,117 @@ export function ImageGenerationCard({
   const syncCardData = useCallback((next: {
     prompt?: string;
     selectedModel?: string;
+    selectedModelKey?: string;
     isCollapsed?: boolean;
     isCollapsedEditorOpen?: boolean;
   }) => {
     onDataChange?.({
       prompt: next.prompt ?? prompt,
       selectedModel: next.selectedModel ?? selectedModel,
+      selectedModelKey: next.selectedModelKey ?? selectedModelKey,
       isCollapsed: next.isCollapsed ?? isCollapsed,
       isCollapsedEditorOpen: next.isCollapsedEditorOpen ?? isCollapsedEditorOpen,
     });
-  }, [isCollapsed, isCollapsedEditorOpen, onDataChange, prompt, selectedModel]);
+  }, [isCollapsed, isCollapsedEditorOpen, onDataChange, prompt, selectedModel, selectedModelKey]);
+
+  const loadImageModels = useCallback(async () => {
+    if (!modelsConfigService.isAvailable()) {
+      setImageModels([]);
+      setModelsError("Desktop bridge 未初始化，无法读取 Image 模型配置");
+      return;
+    }
+
+    setIsModelsLoading(true);
+    setModelsError(null);
+
+    try {
+      const snapshot = await modelsConfigService.list();
+      setImageModels(snapshot.models.filter((model) => model.category === "image"));
+    } catch (error) {
+      setImageModels([]);
+      setModelsError(error instanceof Error ? error.message : "读取 Image 模型配置失败");
+    } finally {
+      setIsModelsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadImageModels();
+  }, [loadImageModels]);
+
+  useEffect(() => {
+    if (!isModelMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (modelMenuRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsModelMenuOpen(false);
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isModelMenuOpen]);
+
+  const selectedModelConfig = useMemo(() => {
+    if (selectedModelKey) {
+      return imageModels.find((model) => model.key === selectedModelKey) ?? null;
+    }
+
+    return imageModels.find((model) => model.display_name === selectedModel) ?? null;
+  }, [imageModels, selectedModel, selectedModelKey]);
+
+  useEffect(() => {
+    if (imageModels.length === 0) {
+      return;
+    }
+
+    if (selectedModelConfig) {
+      if (selectedModel !== selectedModelConfig.display_name || selectedModelKey !== selectedModelConfig.key) {
+        setSelectedModel(selectedModelConfig.display_name);
+        setSelectedModelKey(selectedModelConfig.key);
+      }
+      return;
+    }
+
+    const fallbackModel = imageModels[0];
+    setSelectedModel(fallbackModel.display_name);
+    setSelectedModelKey(fallbackModel.key);
+    syncCardData({
+      selectedModel: fallbackModel.display_name,
+      selectedModelKey: fallbackModel.key,
+    });
+  }, [imageModels, selectedModel, selectedModelConfig, selectedModelKey, syncCardData]);
+
+  const hasConfiguredApiKey = Boolean(selectedModelConfig?.api_key.trim());
+  const modelHintText = useMemo(() => {
+    if (isModelsLoading) {
+      return "正在读取 Image 类型模型配置...";
+    }
+
+    if (modelsError) {
+      return modelsError;
+    }
+
+    if (imageModels.length === 0) {
+      return '未找到可用的 Image 模型，请先在“模型接口配置”中配置 Image 类型模型。';
+    }
+
+    if (!selectedModelConfig) {
+      return "当前图片模型无效，请重新选择 Image 类型模型。";
+    }
+
+    if (!hasConfiguredApiKey) {
+      return `当前模型“${selectedModelConfig.display_name}”未配置 API Key，请先在“模型接口配置”中完成配置。`;
+    }
+
+    return null;
+  }, [hasConfiguredApiKey, imageModels.length, isModelsLoading, modelsError, selectedModelConfig]);
 
   // 处理拖拽开始
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -170,6 +279,27 @@ export function ImageGenerationCard({
     e.stopPropagation();
     onFocus?.(id);
   }, [id, onFocus]);
+
+  const handleToggleModelMenu = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+
+    if (!isModelMenuOpen) {
+      await loadImageModels();
+    }
+
+    setIsModelMenuOpen((prev) => !prev);
+  }, [id, isModelMenuOpen, loadImageModels, onFocus]);
+
+  const handleSelectModel = useCallback((model: ModelsConfigModelItem) => {
+    setSelectedModel(model.display_name);
+    setSelectedModelKey(model.key);
+    syncCardData({
+      selectedModel: model.display_name,
+      selectedModelKey: model.key,
+    });
+    setIsModelMenuOpen(false);
+  }, [syncCardData]);
 
   const handleConnectionHandleMouseDown = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -260,21 +390,81 @@ export function ImageGenerationCard({
               />
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                className="flex flex-1 items-center justify-between rounded-lg border border-white/10 bg-[#121214] px-4 py-2 text-sm text-gray-200"
+            {modelHintText ? (
+              <div
+                className={`rounded-lg border px-3 py-2 text-xs leading-5 ${
+                  modelsError
+                    ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
+                    : "border-amber-500/20 bg-amber-500/10 text-amber-200"
+                }`}
                 onMouseDown={stopPropagation}
-                onClick={handleUtilityButtonClick}
+                onClick={stopPropagation}
               >
-                <span>{selectedModel}</span>
-                <svg className="h-3.5 w-3.5 text-[#71717a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+                {modelHintText}
+              </div>
+            ) : null}
+
+            <div className="flex items-center gap-2.5">
+              <div className="relative flex-1" ref={modelMenuRef}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-[#121214] px-4 py-2 text-sm text-gray-200"
+                  onMouseDown={stopPropagation}
+                  onClick={handleToggleModelMenu}
+                >
+                  <span className="truncate">{selectedModelConfig?.display_name ?? selectedModel}</span>
+                  <svg className={`h-3.5 w-3.5 text-[#71717a] transition-transform ${isModelMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isModelMenuOpen ? (
+                  <div
+                    className="absolute left-0 top-full z-30 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                    onMouseDown={stopPropagation}
+                    onClick={stopPropagation}
+                  >
+                    <div className="max-h-64 overflow-y-auto py-1.5">
+                      {imageModels.length > 0 ? (
+                        imageModels.map((model) => {
+                          const isSelected = model.key === selectedModelKey || model.display_name === selectedModel;
+                          const hasApiKey = Boolean(model.api_key.trim());
+
+                          return (
+                            <button
+                              key={model.key}
+                              type="button"
+                              className={`flex w-full items-center justify-between px-4 py-2.5 text-left transition ${
+                                isSelected ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/5"
+                              }`}
+                              onClick={() => handleSelectModel(model)}
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate text-sm">{model.display_name}</div>
+                                <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+                                  <span className="truncate">{model.provider}</span>
+                                  {!hasApiKey ? (
+                                    <span className="text-amber-300">未配置 Key</span>
+                                  ) : null}
+                                </div>
+                              </div>
+                              {isSelected ? (
+                                <svg className="ml-3 h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : null}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="px-4 py-3 text-sm text-gray-500">暂无可用的 Image 模型</div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <button type="button" className={chipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1:1</button>
               <button type="button" className={chipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1K</button>
-              <button type="button" className={chipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>异步</button>
               <button
                 type="button"
                 className={`flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-[#18181b] text-white transition hover:bg-white/5 ${isGenerating ? "cursor-not-allowed opacity-50" : ""}`}
@@ -302,15 +492,79 @@ export function ImageGenerationCard({
           <div className="absolute -left-[5px] top-8 z-20 h-2.5 w-2.5 rounded-full bg-gray-500" />
 
           <div className="relative z-10 flex flex-col rounded-2xl border border-white/10 bg-[#18181b] p-3 shadow-xl">
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                className="flex flex-1 items-center rounded-lg border border-white/10 bg-[#121214] px-4 py-2 text-sm text-gray-200"
+            {modelHintText ? (
+              <div
+                className={`mb-2 rounded-lg border px-3 py-2 text-xs leading-5 ${
+                  modelsError
+                    ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
+                    : "border-amber-500/20 bg-amber-500/10 text-amber-200"
+                }`}
                 onMouseDown={stopPropagation}
-                onClick={handleUtilityButtonClick}
+                onClick={stopPropagation}
               >
-                {selectedModel}
-              </button>
+                {modelHintText}
+              </div>
+            ) : null}
+
+            <div className="flex items-center gap-2.5">
+              <div className="relative flex-1" ref={modelMenuRef}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-[#121214] px-4 py-2 text-sm text-gray-200"
+                  onMouseDown={stopPropagation}
+                  onClick={handleToggleModelMenu}
+                >
+                  <span className="truncate">{selectedModelConfig?.display_name ?? selectedModel}</span>
+                  <svg className={`h-3.5 w-3.5 text-[#71717a] transition-transform ${isModelMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isModelMenuOpen ? (
+                  <div
+                    className="absolute left-0 top-full z-30 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                    onMouseDown={stopPropagation}
+                    onClick={stopPropagation}
+                  >
+                    <div className="max-h-64 overflow-y-auto py-1.5">
+                      {imageModels.length > 0 ? (
+                        imageModels.map((model) => {
+                          const isSelected = model.key === selectedModelKey || model.display_name === selectedModel;
+                          const hasApiKey = Boolean(model.api_key.trim());
+
+                          return (
+                            <button
+                              key={model.key}
+                              type="button"
+                              className={`flex w-full items-center justify-between px-4 py-2.5 text-left transition ${
+                                isSelected ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/5"
+                              }`}
+                              onClick={() => handleSelectModel(model)}
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate text-sm">{model.display_name}</div>
+                                <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+                                  <span className="truncate">{model.provider}</span>
+                                  {!hasApiKey ? (
+                                    <span className="text-amber-300">未配置 Key</span>
+                                  ) : null}
+                                </div>
+                              </div>
+                              {isSelected ? (
+                                <svg className="ml-3 h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : null}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="px-4 py-3 text-sm text-gray-500">暂无可用的 Image 模型</div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <button type="button" className={compactChipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1:1</button>
               <button type="button" className={compactChipButtonClass} onMouseDown={stopPropagation} onClick={handleUtilityButtonClick}>1K</button>
               <button

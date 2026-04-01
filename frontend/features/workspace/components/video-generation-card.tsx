@@ -29,7 +29,8 @@
  * ============================================================================
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { modelsConfigService, type ModelsConfigModelItem } from "@/core/api";
 import { useTheme } from "@/features/theme/theme-context";
 import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
 
@@ -105,22 +106,142 @@ export function VideoGenerationCard({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const cardRef = useRef<HTMLDivElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
   const [prompt, setPrompt] = useState("");
   const [selectedModel, setSelectedModel] = useState("Seedance 1.0 lite (文生)");
+  const [selectedModelKey, setSelectedModelKey] = useState("");
   const [selectedRatio, setSelectedRatio] = useState("16:9");
   const [selectedDuration, setSelectedDuration] = useState("5s");
   const [selectedResolution, setSelectedResolution] = useState("1080P");
+  const [videoModels, setVideoModels] = useState<ModelsConfigModelItem[]>([]);
+  const [isModelsLoading, setIsModelsLoading] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const cardName = getCardNameValue(data, "生成视频");
 
   useEffect(() => {
     setPrompt(typeof data?.prompt === "string" ? data.prompt : "");
     setSelectedModel(typeof data?.selectedModel === "string" ? data.selectedModel : "Seedance 1.0 lite (文生)");
+    setSelectedModelKey(typeof data?.selectedModelKey === "string" ? data.selectedModelKey : "");
     setSelectedRatio(typeof data?.selectedRatio === "string" ? data.selectedRatio : "16:9");
     setSelectedDuration(typeof data?.selectedDuration === "string" ? data.selectedDuration : "5s");
     setSelectedResolution(typeof data?.selectedResolution === "string" ? data.selectedResolution : "1080P");
   }, [data]);
+
+  const loadVideoModels = useCallback(async () => {
+    if (!modelsConfigService.isAvailable()) {
+      setVideoModels([]);
+      setModelsError("Desktop bridge 未初始化，无法读取 Video 模型配置");
+      return;
+    }
+
+    setIsModelsLoading(true);
+    setModelsError(null);
+
+    try {
+      const snapshot = await modelsConfigService.list();
+      setVideoModels(snapshot.models.filter((model) => model.category === "video"));
+    } catch (error) {
+      setVideoModels([]);
+      setModelsError(error instanceof Error ? error.message : "读取 Video 模型配置失败");
+    } finally {
+      setIsModelsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadVideoModels();
+  }, [loadVideoModels]);
+
+  useEffect(() => {
+    if (!isModelMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (modelMenuRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsModelMenuOpen(false);
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isModelMenuOpen]);
+
+  const selectedModelConfig = useMemo(() => {
+    if (selectedModelKey) {
+      return videoModels.find((model) => model.key === selectedModelKey) ?? null;
+    }
+
+    return videoModels.find((model) => model.display_name === selectedModel) ?? null;
+  }, [selectedModel, selectedModelKey, videoModels]);
+
+  useEffect(() => {
+    if (videoModels.length === 0) {
+      return;
+    }
+
+    if (selectedModelConfig) {
+      if (selectedModel !== selectedModelConfig.display_name || selectedModelKey !== selectedModelConfig.key) {
+        setSelectedModel(selectedModelConfig.display_name);
+        setSelectedModelKey(selectedModelConfig.key);
+      }
+      return;
+    }
+
+    const fallbackModel = videoModels[0];
+    setSelectedModel(fallbackModel.display_name);
+    setSelectedModelKey(fallbackModel.key);
+    onDataChange?.({
+      prompt,
+      selectedModel: fallbackModel.display_name,
+      selectedModelKey: fallbackModel.key,
+      selectedRatio,
+      selectedDuration,
+      selectedResolution,
+    });
+  }, [
+    onDataChange,
+    prompt,
+    selectedDuration,
+    selectedModel,
+    selectedModelConfig,
+    selectedModelKey,
+    selectedRatio,
+    selectedResolution,
+    videoModels,
+  ]);
+
+  const hasConfiguredApiKey = Boolean(selectedModelConfig?.api_key.trim());
+  const modelHintText = useMemo(() => {
+    if (isModelsLoading) {
+      return "正在读取 Video 类型模型配置...";
+    }
+
+    if (modelsError) {
+      return modelsError;
+    }
+
+    if (videoModels.length === 0) {
+      return '未找到可用的 Video 模型，请先在“模型接口配置”中配置 Video 类型模型。';
+    }
+
+    if (!selectedModelConfig) {
+      return "当前视频模型无效，请重新选择 Video 类型模型。";
+    }
+
+    if (!hasConfiguredApiKey) {
+      return `当前模型“${selectedModelConfig.display_name}”未配置 API Key，请先在“模型接口配置”中完成配置。`;
+    }
+
+    return null;
+  }, [hasConfiguredApiKey, isModelsLoading, modelsError, selectedModelConfig, videoModels.length]);
 
   // 处理拖拽开始
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -150,6 +271,31 @@ export function VideoGenerationCard({
     onFocus?.(id);
     onConnectionDragStart?.(id, e);
   }, [id, onFocus, onConnectionDragStart]);
+
+  const handleToggleModelMenu = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+
+    if (!isModelMenuOpen) {
+      await loadVideoModels();
+    }
+
+    setIsModelMenuOpen((prev) => !prev);
+  }, [id, isModelMenuOpen, loadVideoModels, onFocus]);
+
+  const handleSelectModel = useCallback((model: ModelsConfigModelItem) => {
+    setSelectedModel(model.display_name);
+    setSelectedModelKey(model.key);
+    onDataChange?.({
+      prompt,
+      selectedModel: model.display_name,
+      selectedModelKey: model.key,
+      selectedRatio,
+      selectedDuration,
+      selectedResolution,
+    });
+    setIsModelMenuOpen(false);
+  }, [onDataChange, prompt, selectedDuration, selectedRatio, selectedResolution]);
 
   const stopPropagation = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -229,14 +375,81 @@ export function VideoGenerationCard({
         />
 
         {/* 底部工具栏 */}
-        <div className="flex items-center gap-2 px-5 pb-5 select-none">
+        <div className="flex flex-col gap-3 px-5 pb-5 select-none">
+          {modelHintText ? (
+            <div
+              className={`rounded-lg border px-3 py-2 text-xs leading-5 ${
+                modelsError
+                  ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
+                  : "border-amber-500/20 bg-amber-500/10 text-amber-200"
+              }`}
+              onMouseDown={stopPropagation}
+              onClick={stopPropagation}
+            >
+              {modelHintText}
+            </div>
+          ) : null}
+
+          <div className="flex items-center gap-2">
           {/* 模型选择框 */}
-          <button className="h-8 px-3 border border-[#3f3f46] rounded-md text-[13px] text-[#d4d4d8] bg-transparent hover:bg-[#27272a] transition-colors flex items-center justify-between w-[200px]">
-            <span className="truncate">{selectedModel}</span>
-            <svg className="w-3.5 h-3.5 text-[#71717a] ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+            <div className="relative w-[200px]" ref={modelMenuRef}>
+              <button
+                type="button"
+                className="flex h-8 w-full items-center justify-between rounded-md border border-[#3f3f46] bg-transparent px-3 text-[13px] text-[#d4d4d8] transition-colors hover:bg-[#27272a]"
+                onMouseDown={stopPropagation}
+                onClick={handleToggleModelMenu}
+              >
+                <span className="truncate">{selectedModelConfig?.display_name ?? selectedModel}</span>
+                <svg className={`ml-1 h-3.5 w-3.5 flex-shrink-0 text-[#71717a] transition-transform ${isModelMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isModelMenuOpen ? (
+                <div
+                  className="absolute left-0 top-full z-30 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                  onMouseDown={stopPropagation}
+                  onClick={stopPropagation}
+                >
+                  <div className="max-h-64 overflow-y-auto py-1.5">
+                    {videoModels.length > 0 ? (
+                      videoModels.map((model) => {
+                        const isSelected = model.key === selectedModelKey || model.display_name === selectedModel;
+                        const hasApiKey = Boolean(model.api_key.trim());
+
+                        return (
+                          <button
+                            key={model.key}
+                            type="button"
+                            className={`flex w-full items-center justify-between px-4 py-2.5 text-left transition ${
+                              isSelected ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/5"
+                            }`}
+                            onClick={() => handleSelectModel(model)}
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-sm">{model.display_name}</div>
+                              <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+                                <span className="truncate">{model.provider}</span>
+                                {!hasApiKey ? (
+                                  <span className="text-amber-300">未配置 Key</span>
+                                ) : null}
+                              </div>
+                            </div>
+                            {isSelected ? (
+                              <svg className="ml-3 h-4 w-4 shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : null}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="px-4 py-3 text-sm text-gray-500">暂无可用的 Video 模型</div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
 
           {/* 比例选择 */}
           <button className="h-8 px-3 border border-[#3f3f46] rounded-md text-[13px] text-[#d4d4d8] bg-transparent hover:bg-[#27272a] transition-colors flex items-center justify-center">
@@ -269,6 +482,7 @@ export function VideoGenerationCard({
           <button className="h-8 w-7 text-[#71717a] hover:text-[#d4d4d8] bg-transparent transition-colors flex items-center justify-center ml-1">
             <LucideIcon name="expand" className="w-3.5 h-3.5" />
           </button>
+          </div>
         </div>
       </div>
     </div>
