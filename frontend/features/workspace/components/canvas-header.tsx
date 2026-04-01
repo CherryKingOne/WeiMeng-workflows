@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useTheme } from "@/features/theme/theme-context";
+import { LogModal } from "./log-modal";
 
 interface CanvasHeaderProps {
   projectName?: string;
@@ -10,6 +12,7 @@ interface CanvasHeaderProps {
   onProjectNameChange?: (name: string) => void;
   onStorageClick?: () => void;
   onApiSettingsClick?: () => void;
+  onLogClick?: () => void;
 }
 
 export function CanvasHeader({
@@ -18,12 +21,14 @@ export function CanvasHeader({
   onProjectNameChange,
   onStorageClick,
   onApiSettingsClick,
+  onLogClick,
 }: CanvasHeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
   
   const [isEditing, setIsEditing] = useState(false);
   const [projectName, setProjectName] = useState(initialProjectName);
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   
   // 当外部传入的 projectName 变化时更新本地状态
@@ -59,7 +64,7 @@ export function CanvasHeader({
     }
   };
 
-  return (
+  const header = (
     <header className="fixed top-4 inset-x-0 z-20 pointer-events-none">
       <div className="flex items-center justify-between px-4 max-w-[100vw] overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {/* 左侧项目信息 */}
@@ -180,6 +185,10 @@ export function CanvasHeader({
               <span>{isDark ? "暗色" : "亮色"}</span>
             </button>
             <button
+              onClick={() => {
+                setIsLogModalOpen(true);
+                onLogClick?.();
+              }}
               className={`flex items-center space-x-1.5 transition-colors ${isDark ? "hover:text-white" : "text-gray-700 hover:text-gray-900"}`}
             >
               <svg
@@ -228,5 +237,20 @@ export function CanvasHeader({
         </div>
       </div>
     </header>
+  );
+
+  // 使用 Portal 渲染日志弹窗，避免 z-index 层叠上下文问题
+  const logModal = (
+    <LogModal
+      isOpen={isLogModalOpen}
+      onClose={() => setIsLogModalOpen(false)}
+    />
+  );
+
+  return (
+    <>
+      {header}
+      {typeof window !== "undefined" && createPortal(logModal, document.body)}
+    </>
   );
 }
