@@ -31,8 +31,9 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { modelsConfigService, type ModelsConfigModelItem } from "@/core/api";
-import { useTheme } from "@/features/theme/theme-context";
 import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
+
+const VIDEO_GENERATION_MODEL_FALLBACK_CATEGORY: ModelsConfigModelItem["category"] = "image";
 
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
@@ -103,8 +104,6 @@ export function VideoGenerationCard({
   data,
   onDataChange,
 }: VideoGenerationCardProps) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const cardRef = useRef<HTMLDivElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -142,10 +141,14 @@ export function VideoGenerationCard({
 
     try {
       const snapshot = await modelsConfigService.list();
-      setVideoModels(snapshot.models.filter((model) => model.category === "video"));
+      setVideoModels(
+        snapshot.models.filter(
+          (model) => model.category === VIDEO_GENERATION_MODEL_FALLBACK_CATEGORY
+        )
+      );
     } catch (error) {
       setVideoModels([]);
-      setModelsError(error instanceof Error ? error.message : "读取 Video 模型配置失败");
+      setModelsError(error instanceof Error ? error.message : "读取模型配置失败");
     } finally {
       setIsModelsLoading(false);
     }
@@ -221,7 +224,7 @@ export function VideoGenerationCard({
   const hasConfiguredApiKey = Boolean(selectedModelConfig?.api_key.trim());
   const modelHintText = useMemo(() => {
     if (isModelsLoading) {
-      return "正在读取 Video 类型模型配置...";
+      return "正在读取可用于视频任务的模型配置...";
     }
 
     if (modelsError) {
@@ -229,11 +232,11 @@ export function VideoGenerationCard({
     }
 
     if (videoModels.length === 0) {
-      return '未找到可用的 Video 模型，请先在“模型接口配置”中配置 Video 类型模型。';
+      return '未找到可用模型，当前视频任务会复用“模型接口配置”中的 Image 类型模型。';
     }
 
     if (!selectedModelConfig) {
-      return "当前视频模型无效，请重新选择 Video 类型模型。";
+      return "当前视频任务模型无效，请重新选择可用模型。";
     }
 
     if (!hasConfiguredApiKey) {
@@ -444,7 +447,7 @@ export function VideoGenerationCard({
                         );
                       })
                     ) : (
-                      <div className="px-4 py-3 text-sm text-gray-500">暂无可用的 Video 模型</div>
+                      <div className="px-4 py-3 text-sm text-gray-500">暂无可用模型</div>
                     )}
                   </div>
                 </div>

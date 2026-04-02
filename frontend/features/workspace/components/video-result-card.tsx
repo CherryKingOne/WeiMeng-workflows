@@ -159,6 +159,15 @@ export function VideoResultCard({
     e.stopPropagation();
   }, []);
 
+  const handleMediaMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+  }, [id, onFocus]);
+
+  const preventNativeDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
   return (
     <div
       ref={cardRef}
@@ -247,6 +256,11 @@ export function VideoResultCard({
               <video
                 src={previewVideoSrc}
                 className="w-full flex-1 object-contain"
+                data-card-drag-ignore
+                draggable={false}
+                onMouseDown={handleMediaMouseDown}
+                onClick={stopPropagation}
+                onDragStart={preventNativeDrag}
                 controls
               />
             </div>

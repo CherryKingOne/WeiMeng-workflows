@@ -15,7 +15,7 @@ import { CompareCard } from "./compare-card";
 const IMAGE_INPUT_CARD_WIDTH = 320;
 const IMAGE_INPUT_CARD_HEIGHT = 320;
 const IMAGE_INPUT_CARD_HEADER_OFFSET = 24;
-const IMAGE_GENERATION_CARD_WIDTH = 520;
+const IMAGE_GENERATION_CARD_WIDTH = 560;
 const IMAGE_GENERATION_CARD_HEIGHT = 392;
 const IMAGE_GENERATION_CARD_HEADER_OFFSET = 28;
 const IMAGE_RESULT_CARD_WIDTH = 540;
@@ -197,6 +197,22 @@ export function CanvasContainer({
     };
   }, [offset.x, offset.y, scale]);
 
+  const getSvgPositionFromClient = useCallback((clientX: number, clientY: number) => {
+    const svgRect = svgRef.current?.getBoundingClientRect();
+    if (svgRect) {
+      return {
+        x: clientX - svgRect.left,
+        y: clientY - svgRect.top,
+      };
+    }
+
+    const containerRect = containerRef.current?.getBoundingClientRect();
+    return {
+      x: clientX - (containerRect?.left ?? 0),
+      y: clientY - (containerRect?.top ?? 0),
+    };
+  }, []);
+
   const getCardDimensions = useCallback((type: CardItem["type"]) => {
     switch (type) {
       case "image":
@@ -288,11 +304,8 @@ export function CanvasContainer({
     }
 
     const rect = anchorElement.getBoundingClientRect();
-    return {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    };
-  }, []);
+    return getSvgPositionFromClient(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }, [getSvgPositionFromClient]);
 
   // 更新画布位置
   const updateCanvasPosition = useCallback((newOffset: { x: number; y: number }) => {
@@ -349,6 +362,10 @@ export function CanvasContainer({
   const handleCardDragStart = useCallback((cardId: string, e: React.MouseEvent) => {
     const card = cards.find(c => c.id === cardId);
     if (!card) return;
+
+    if (e.target instanceof Element && e.target.closest("[data-card-drag-ignore]")) {
+      return;
+    }
     
     e.stopPropagation();
     
@@ -654,14 +671,15 @@ export function CanvasContainer({
 
     const outputAnchor = getCardOutputAnchor(card);
     if (!outputAnchor) return;
+    const pointerPosition = getSvgPositionFromClient(e.clientX, e.clientY);
 
     setConnectionDraft({
       fromId: cardId,
-      currentX: outputAnchor.x,
-      currentY: outputAnchor.y,
+      currentX: pointerPosition.x,
+      currentY: pointerPosition.y,
     });
     setConnectionTargetId(null);
-  }, [cards, getCardOutputAnchor]);
+  }, [cards, getCardOutputAnchor, getSvgPositionFromClient]);
 
   const findConnectionTarget = useCallback((pointerX: number, pointerY: number, fromId: string) => {
     let closestTargetId: string | null = null;
@@ -693,20 +711,23 @@ export function CanvasContainer({
     }
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
+      const pointerPosition = getSvgPositionFromClient(e.clientX, e.clientY);
+
       setConnectionDraft((prev) =>
         prev
           ? {
               ...prev,
-              currentX: e.clientX,
-              currentY: e.clientY,
+              currentX: pointerPosition.x,
+              currentY: pointerPosition.y,
             }
           : prev
       );
-      setConnectionTargetId(findConnectionTarget(e.clientX, e.clientY, connectionDraft.fromId));
+      setConnectionTargetId(findConnectionTarget(pointerPosition.x, pointerPosition.y, connectionDraft.fromId));
     };
 
     const handleGlobalMouseUp = (e: MouseEvent) => {
-      const targetId = findConnectionTarget(e.clientX, e.clientY, connectionDraft.fromId);
+      const pointerPosition = getSvgPositionFromClient(e.clientX, e.clientY);
+      const targetId = findConnectionTarget(pointerPosition.x, pointerPosition.y, connectionDraft.fromId);
       if (targetId) {
         onAddConnection?.(connectionDraft.fromId, targetId);
       }
@@ -721,7 +742,7 @@ export function CanvasContainer({
       document.removeEventListener("mousemove", handleGlobalMouseMove);
       document.removeEventListener("mouseup", handleGlobalMouseUp);
     };
-  }, [connectionDraft, findConnectionTarget, onAddConnection]);
+  }, [connectionDraft, findConnectionTarget, getSvgPositionFromClient, onAddConnection]);
 
   // 计算连接线的起点和终点
   const getConnectionLine = (connection: Connection) => {

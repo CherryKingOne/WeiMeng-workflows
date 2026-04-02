@@ -355,6 +355,50 @@ function cardHasImageInput(card: CardItem | undefined): boolean {
   return false;
 }
 
+/**
+ * 检查图片结果卡片是否为空（无内容）
+ * 用于判断是否可以重用该卡片显示新生成的图片
+ */
+function isImageResultCardEmpty(card: CardItem | undefined): boolean {
+  if (!card) {
+    return false;
+  }
+
+  if (card.type !== "image-result") {
+    return false;
+  }
+
+  // 检查是否有任何图片数据
+  const hasImageData = hasMediaPayload(card.data?.imageData);
+  const hasIncomingImageData = hasMediaPayload(card.data?.incomingImageData);
+  const hasGeneratedImages = Array.isArray(card.data?.generatedImages) && card.data.generatedImages.length > 0;
+
+  return !hasImageData && !hasIncomingImageData && !hasGeneratedImages;
+}
+
+/**
+ * 查找与生成卡片已连接且为空的图片结果卡片
+ * 返回第一个找到的空卡片，用于重用
+ */
+function findEmptyConnectedResultCard(
+  generationCardId: string,
+  cards: CardItem[],
+  connections: Connection[]
+): CardItem | null {
+  const connectedResultCardIds = connections
+    .filter((conn) => conn.fromId === generationCardId)
+    .map((conn) => conn.toId);
+
+  for (const cardId of connectedResultCardIds) {
+    const card = cards.find((c) => c.id === cardId);
+    if (card && card.type === "image-result" && isImageResultCardEmpty(card)) {
+      return card;
+    }
+  }
+
+  return null;
+}
+
 function resolveRequestType(
   generationCard: CardItem,
   cards: CardItem[],
@@ -907,51 +951,109 @@ function WorkspaceContent() {
       : Number.isFinite(parsedImageCount) && parsedImageCount > 0
         ? parsedImageCount
         : 1;
-    const resultCards: CardItem[] = Array.from({ length: resultCardCount }, (_, index) => {
-      const cardId = `card-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
 
-      return {
-        id: cardId,
-        type: isVideoGeneration ? "video-result" : "image-result",
-        position: isVideoGeneration
-          ? {
-              x: generationCard.position.x + 600,
-              y: generationCard.position.y + 110,
-            }
-          : buildImageResultCardPosition(generationCard.position, index),
+    // 查找已连接且为空的图片结果卡片，用于重用
+    const emptyConnectedResultCard = isVideoGeneration
+      ? null
+      : findEmptyConnectedResultCard(generationCardId, cards, connections);
+
+    let resultCards: CardItem[];
+    let nextConnections: Connection[];
+
+    if (emptyConnectedResultCard) {
+      // 重用已存在的空预览卡片
+      resultCards = [{
+        ...emptyConnectedResultCard,
         isGenerating: true,
-        data: buildCardData(isVideoGeneration ? "video-result" : "image-result"),
-      };
-    });
-    const resultCardId = resultCards[0].id;
-    const nextConnections = [
-      ...connectionsRef.current,
-      ...resultCards.map((card) => ({ fromId: generationCardId, toId: card.id })),
-    ];
+        data: {
+          ...emptyConnectedResultCard.data,
+          [NODE_NAME_DATA_KEY]: getCardNameValue(emptyConnectedResultCard.data, getDefaultCardName("image-result")),
+        },
+      }];
+      // 不需要添加新连接，因为已经存在连接
+      nextConnections = connectionsRef.current;
+    } else {
+      // 创建新的结果卡片
+      resultCards = Array.from({ length: resultCardCount }, (_, index) => {
+        const cardId = `card-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
 
-    setCards((prevCards) => [...prevCards, ...resultCards]);
+        return {
+          id: cardId,
+          type: isVideoGeneration ? "video-result" : "image-result",
+          position: isVideoGeneration
+            ? {
+                x: generationCard.position.x + 600,
+                y: generationCard.position.y + 110,
+              }
+            : buildImageResultCardPosition(generationCard.position, index),
+          isGenerating: true,
+          data: buildCardData(isVideoGeneration ? "video-result" : "image-result"),
+        };
+      });
+      // 添加新的连接
+      nextConnections = [
+        ...connectionsRef.current,
+        ...resultCards.map((card) => ({ fromId: generationCardId, toId: card.id })),
+      ];
+    }
+
+    const resultCardId = resultCards[0].id;
+
+    if (emptyConnectedResultCard) {
+      // 更新已存在的卡片状态
+      setCards((prevCards) =>
+        prevCards.map((card) =>
+          card.id === emptyConnectedResultCard.id
+            ? resultCards[0]
+            : card
+        )
+      );
+    } else {
+      // 添加新卡片
+      setCards((prevCards) => [...prevCards, ...resultCards]);
+    }
+
     setFocusedCardId(resultCardId);
     connectionsRef.current = nextConnections;
     setConnections(nextConnections);
     setGeneratingCards((prev) => new Set(prev).add(generationCardId));
 
-    resultCards.forEach((resultCard) => {
-      const resultCardName = getCardDisplayName(resultCard);
+    if (!emptyConnectedResultCard) {
+      // 只为新创建的卡片记录日志
+      resultCards.forEach((resultCard) => {
+        const resultCardName = getCardDisplayName(resultCard);
+        recordRuntimeLog({
+          category: "card",
+          event_type: "card_added",
+          level: "info",
+          message: `画布新增"${resultCardName}"卡片，卡片ID: ${resultCard.id}`,
+          workflow_id: workflowId ?? undefined,
+          card_id: resultCard.id,
+          card_name: resultCardName,
+          details: {
+            card_type: resultCard.type,
+            source_generation_card_id: generationCardId,
+            request_id: requestId,
+          },
+        });
+      });
+    } else {
+      // 重用卡片时记录日志
       recordRuntimeLog({
         category: "card",
-        event_type: "card_added",
+        event_type: "card_reused",
         level: "info",
-        message: `画布新增"${resultCardName}"卡片，卡片ID: ${resultCard.id}`,
+        message: `重用已存在的空预览卡片，卡片ID: ${emptyConnectedResultCard.id}`,
         workflow_id: workflowId ?? undefined,
-        card_id: resultCard.id,
-        card_name: resultCardName,
+        card_id: emptyConnectedResultCard.id,
+        card_name: getCardDisplayName(emptyConnectedResultCard),
         details: {
-          card_type: resultCard.type,
+          card_type: emptyConnectedResultCard.type,
           source_generation_card_id: generationCardId,
           request_id: requestId,
         },
       });
-    });
+    }
     recordRuntimeLog({
       category: "request",
       event_type: "request_started",

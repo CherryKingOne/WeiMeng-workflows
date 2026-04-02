@@ -148,6 +148,14 @@ export function ImageResultCard({
     e.stopPropagation();
   }, []);
 
+  const handleImageMouseDown = useCallback(() => {
+    onFocus?.(id);
+  }, [id, onFocus]);
+
+  const preventNativeDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
   return (
     <div
       ref={cardRef}
@@ -230,38 +238,14 @@ export function ImageResultCard({
               src={previewImageSrc}
               alt={previewImageData?.file_name || "生成的图片"}
               className="w-full h-full object-contain"
+              draggable={false}
+              onMouseDown={handleImageMouseDown}
+              onClick={stopPropagation}
+              onDragStart={preventNativeDrag}
             />
           ) : (
             // 默认状态：显示提示
             <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-              <svg
-                width="36"
-                height="36"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="mb-4"
-                aria-hidden="true"
-              >
-                <path
-                  d="M12 5C7 5 2.73 8.11 1 12C2.73 15.89 7 19 12 19C17 19 21.27 15.89 23 12C21.27 8.11 17 5 12 5Z"
-                  stroke="#4a4a4c"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="3.5"
-                  stroke="#4a4a4c"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="12" cy="12" r="1.5" fill="#4a4a4c" />
-              </svg>
-
               <p className="text-[15px] font-normal tracking-[0.05em] text-[#999999]">
                 连接 AI 绘图 / AI 视频 / 可灵动作迁移 节点
               </p>

@@ -126,6 +126,19 @@ export function PreviewCard({
     e.stopPropagation();
   }, []);
 
+  const handleImageMouseDown = useCallback(() => {
+    onFocus?.(id);
+  }, [id, onFocus]);
+
+  const handleVideoMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFocus?.(id);
+  }, [id, onFocus]);
+
+  const preventNativeDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
   return (
     <div
       ref={cardRef}
@@ -161,6 +174,11 @@ export function PreviewCard({
             <video
               src={previewVideoSrc}
               className="h-full w-full object-contain"
+              data-card-drag-ignore
+              draggable={false}
+              onMouseDown={handleVideoMouseDown}
+              onClick={stopPropagation}
+              onDragStart={preventNativeDrag}
               controls
             />
           ) : previewImageSrc ? (
@@ -168,6 +186,10 @@ export function PreviewCard({
               src={previewImageSrc}
               alt={previewImage?.file_name || "预览图片"}
               className="h-full w-full object-contain"
+              draggable={false}
+              onMouseDown={handleImageMouseDown}
+              onClick={stopPropagation}
+              onDragStart={preventNativeDrag}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center px-8 text-center">

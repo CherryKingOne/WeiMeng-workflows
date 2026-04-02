@@ -182,7 +182,6 @@ export function ImageGenerationCard({
   id,
   onRemove,
   onFocus,
-  isFocused = false,
   onDragStart,
   onConnectionDragStart,
   onGenerate,
@@ -656,7 +655,10 @@ export function ImageGenerationCard({
           className="relative flex h-[392px] w-[560px] flex-col justify-between overflow-visible rounded-2xl border border-white/10 bg-[#18181b] p-4 shadow-2xl"
           onClick={handleCardClick}
         >
-          <div className="absolute -left-[5px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-gray-500" />
+          <div
+            data-connection-anchor="input"
+            className="absolute -left-[5px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-gray-500"
+          />
 
           {isHovered && (
             <>
@@ -672,6 +674,7 @@ export function ImageGenerationCard({
 
               <button
                 type="button"
+                data-connection-anchor="output"
                 className="absolute -right-[24px] top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#18181b] text-white shadow-lg transition hover:bg-[#27272a]"
                 onMouseDown={handleConnectionHandleMouseDown}
                 onClick={stopPropagation}
