@@ -461,8 +461,6 @@ function getCategoryBadge(category: ModelCategory): { label: string; className: 
   switch (category) {
     case "image":
       return { label: "Image", className: "bg-[#2a1f13] text-amber-300" };
-    case "video":
-      return { label: "Video", className: "bg-[#3b224c] text-[#c78df6]" };
     case "chat":
     default:
       return { label: "Chat", className: "bg-[#1f2937] text-cyan-300" };

@@ -1,1 +1,0 @@
-"""Video provider registry package."""

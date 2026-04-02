@@ -214,7 +214,7 @@ export interface FileBase64Result {
  * ============================================================
  */
 
-export type ModelCategory = "chat" | "image" | "video";
+export type ModelCategory = "chat" | "image";
 
 export interface ModelsConfigCategoryItem {
   key: ModelCategory;

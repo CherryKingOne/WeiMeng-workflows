@@ -25,11 +25,10 @@ from modules.settings.domain.repositories import SettingsRepository
 from modules.settings.domain.value_objects import SettingScope
 
 
-CATEGORY_ORDER = ("chat", "image", "video")
+CATEGORY_ORDER = ("chat", "image")
 CATEGORY_LABELS = {
     "chat": "Chat",
     "image": "Image",
-    "video": "Video",
 }
 
 

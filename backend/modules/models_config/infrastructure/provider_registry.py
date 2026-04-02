@@ -18,7 +18,6 @@ from modules.models_config.domain.entities import ModelDefinition
 CATEGORY_ORDER = {
     "chat": 0,
     "image": 1,
-    "video": 2,
 }
 
 
