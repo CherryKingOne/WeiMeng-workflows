@@ -325,6 +325,20 @@ function getRequestTypeLabel(requestType: RuntimeRequestType): string {
   return labelMap[requestType];
 }
 
+const IMAGE_RESULT_CARD_X_OFFSET = 580;
+const IMAGE_RESULT_CARD_Y_OFFSET = 92;
+const IMAGE_RESULT_CARD_STACK_SPACING = 364;
+
+function buildImageResultCardPosition(
+  sourcePosition: { x: number; y: number },
+  index: number
+): { x: number; y: number } {
+  return {
+    x: sourcePosition.x + IMAGE_RESULT_CARD_X_OFFSET,
+    y: sourcePosition.y + IMAGE_RESULT_CARD_Y_OFFSET + index * IMAGE_RESULT_CARD_STACK_SPACING,
+  };
+}
+
 function cardHasImageInput(card: CardItem | undefined): boolean {
   if (!card) {
     return false;
@@ -365,6 +379,7 @@ interface PendingGenerationRequest {
   modelName: string;
   generationCardId: string;
   resultCardId: string;
+  resultCardIds: string[];
   processingTimerId: number | null;
 }
 
@@ -396,6 +411,7 @@ function WorkspaceContent() {
   const isInitialLoad = useRef(true);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingGenerationRequestsRef = useRef<Map<string, PendingGenerationRequest>>(new Map());
+  const cardsRef = useRef<CardItem[]>([]);
   const connectionsRef = useRef<Connection[]>([]);
 
   const buildCardData = useCallback((type: EditableCardType) => ({
@@ -528,6 +544,10 @@ function WorkspaceContent() {
       pendingRequests.clear();
     };
   }, [recordRuntimeLog, workflowId]);
+
+  useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
 
   useEffect(() => {
     connectionsRef.current = connections;
@@ -774,6 +794,11 @@ function WorkspaceContent() {
     }
   ) => {
     const pendingRequest = pendingGenerationRequestsRef.current.get(resultCardId);
+    const outputImages = options?.generatedImages ?? (options?.imageData ? [options.imageData] : []);
+    const targetResultCardIds = pendingRequest?.resultCardIds?.length
+      ? pendingRequest.resultCardIds
+      : [resultCardId];
+
     if (pendingRequest && pendingRequest.processingTimerId !== null) {
       window.clearTimeout(pendingRequest.processingTimerId);
     }
@@ -789,22 +814,29 @@ function WorkspaceContent() {
 
     setCards((prev) => {
       const nextCards = prev.map((card) => {
-        if (card.id !== resultCardId) {
+        const resultCardIndex = targetResultCardIds.indexOf(card.id);
+        if (resultCardIndex === -1) {
           return card;
         }
 
         const nextData = { ...(card.data ?? {}) };
         if (card.type === "image-result") {
-          if (options?.imageData) {
-            nextData.imageData = options.imageData;
+          const nextImageData = outputImages[resultCardIndex] ?? null;
+
+          if (nextImageData) {
+            nextData.imageData = nextImageData;
+          } else {
+            delete nextData.imageData;
           }
 
-          if (options?.generatedImages && options.generatedImages.length > 0) {
+          if (resultCardIndex === 0 && options?.generatedImages && options.generatedImages.length > 0) {
             nextData.generatedImages = options.generatedImages;
           }
 
           if (options?.errorMessage) {
             nextData.generationError = options.errorMessage;
+          } else if (!nextImageData) {
+            nextData.generationError = `模型未返回第 ${resultCardIndex + 1} 张图片。`;
           } else {
             delete nextData.generationError;
           }
@@ -821,13 +853,14 @@ function WorkspaceContent() {
     });
 
     if (pendingRequest) {
+      const outputImageCount = outputImages.length;
       recordRuntimeLog({
         category: "request",
         event_type: "request_completed",
         level: options?.errorMessage ? "error" : "success",
         message: options?.errorMessage
           ? `${getRequestTypeLabel(pendingRequest.requestType)}请求失败: ${options.errorMessage}`
-          : `${getRequestTypeLabel(pendingRequest.requestType)}结果已返回，结果卡片已更新。`,
+          : `${getRequestTypeLabel(pendingRequest.requestType)}结果已返回，共生成 ${outputImageCount} 张图片。`,
         workflow_id: workflowId ?? undefined,
         card_id: pendingRequest.generationCardId,
         request_id: pendingRequest.requestId,
@@ -836,12 +869,15 @@ function WorkspaceContent() {
         details: {
           generation_card_id: pendingRequest.generationCardId,
           result_card_id: resultCardId,
+          result_card_ids: targetResultCardIds,
+          additional_result_card_ids: targetResultCardIds.slice(1),
+          output_image_count: outputImageCount,
           provider_request_id: options?.providerRequestId ?? undefined,
         },
       });
       pendingGenerationRequestsRef.current.delete(resultCardId);
     }
-  }, [recordRuntimeLog, workflowId]);
+  }, [buildCardData, recordRuntimeLog, workflowId]);
 
   // 处理生成按钮点击（从 ImageGenerationCard 触发）
   const handleGenerate = useCallback(async (generationCardId: string) => {
@@ -859,44 +895,62 @@ function WorkspaceContent() {
         : generationCard.type === "video-generation"
           ? "未配置视频模型"
           : "未配置图片模型";
-    const resultCardId = `card-${Date.now()}`;
     const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const isVideoGeneration = generationCard.type === "video-generation";
-    const resultCard: CardItem = {
-      id: resultCardId,
-      type: isVideoGeneration ? "video-result" : "image-result",
-      position: isVideoGeneration
-        ? {
-            x: generationCard.position.x + 600,
-            y: generationCard.position.y + 110,
-          }
-        : {
-            x: generationCard.position.x + 580,
-            y: generationCard.position.y + 92,
-          },
-      isGenerating: true,
-      data: buildCardData(isVideoGeneration ? "video-result" : "image-result"),
-    };
+    const imageCountRaw =
+      typeof generationCard.data?.selectedImageCount === "string"
+        ? generationCard.data.selectedImageCount
+        : "1";
+    const parsedImageCount = Number.parseInt(imageCountRaw, 10);
+    const resultCardCount = isVideoGeneration
+      ? 1
+      : Number.isFinite(parsedImageCount) && parsedImageCount > 0
+        ? parsedImageCount
+        : 1;
+    const resultCards: CardItem[] = Array.from({ length: resultCardCount }, (_, index) => {
+      const cardId = `card-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
 
-    setCards((prevCards) => [...prevCards, resultCard]);
+      return {
+        id: cardId,
+        type: isVideoGeneration ? "video-result" : "image-result",
+        position: isVideoGeneration
+          ? {
+              x: generationCard.position.x + 600,
+              y: generationCard.position.y + 110,
+            }
+          : buildImageResultCardPosition(generationCard.position, index),
+        isGenerating: true,
+        data: buildCardData(isVideoGeneration ? "video-result" : "image-result"),
+      };
+    });
+    const resultCardId = resultCards[0].id;
+    const nextConnections = [
+      ...connectionsRef.current,
+      ...resultCards.map((card) => ({ fromId: generationCardId, toId: card.id })),
+    ];
+
+    setCards((prevCards) => [...prevCards, ...resultCards]);
     setFocusedCardId(resultCardId);
-    connectionsRef.current = [...connectionsRef.current, { fromId: generationCardId, toId: resultCardId }];
-    setConnections((prev) => [...prev, { fromId: generationCardId, toId: resultCardId }]);
+    connectionsRef.current = nextConnections;
+    setConnections(nextConnections);
     setGeneratingCards((prev) => new Set(prev).add(generationCardId));
 
-    const resultCardName = getCardDisplayName(resultCard);
-    recordRuntimeLog({
-      category: "card",
-      event_type: "card_added",
-      level: "info",
-      message: `画布新增"${resultCardName}"卡片，卡片ID: ${resultCard.id}`,
-      workflow_id: workflowId ?? undefined,
-      card_id: resultCard.id,
-      card_name: resultCardName,
-      details: {
-        card_type: resultCard.type,
-        source_generation_card_id: generationCardId,
-      },
+    resultCards.forEach((resultCard) => {
+      const resultCardName = getCardDisplayName(resultCard);
+      recordRuntimeLog({
+        category: "card",
+        event_type: "card_added",
+        level: "info",
+        message: `画布新增"${resultCardName}"卡片，卡片ID: ${resultCard.id}`,
+        workflow_id: workflowId ?? undefined,
+        card_id: resultCard.id,
+        card_name: resultCardName,
+        details: {
+          card_type: resultCard.type,
+          source_generation_card_id: generationCardId,
+          request_id: requestId,
+        },
+      });
     });
     recordRuntimeLog({
       category: "request",
@@ -912,6 +966,8 @@ function WorkspaceContent() {
       details: {
         generation_card_id: generationCardId,
         result_card_id: resultCardId,
+        result_card_ids: resultCards.map((card) => card.id),
+        expected_output_count: resultCards.length,
       },
     });
 
@@ -935,6 +991,7 @@ function WorkspaceContent() {
         details: {
           generation_card_id: generationCardId,
           result_card_id: resultCardId,
+          result_card_ids: resultCards.map((card) => card.id),
         },
       });
     }, 900);
@@ -945,6 +1002,7 @@ function WorkspaceContent() {
       modelName,
       generationCardId,
       resultCardId,
+      resultCardIds: resultCards.map((card) => card.id),
       processingTimerId,
     });
 
@@ -961,11 +1019,7 @@ function WorkspaceContent() {
       typeof generationCard.data?.selectedSize === "string" && generationCard.data.selectedSize.trim()
         ? generationCard.data.selectedSize.trim()
         : "1024*1024";
-    const imageCountRaw =
-      typeof generationCard.data?.selectedImageCount === "string"
-        ? generationCard.data.selectedImageCount
-        : "1";
-    const imageCount = Number.parseInt(imageCountRaw, 10);
+    const imageCount = parsedImageCount;
     const inputImages = extractConnectedInputImages(generationCard);
 
     if (!modelsConfigService.isAvailable()) {

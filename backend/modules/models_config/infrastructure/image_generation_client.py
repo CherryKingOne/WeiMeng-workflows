@@ -256,17 +256,14 @@ class ImageGenerationClient:
             return self._asset_from_data_url(image_value)
 
         if image_value.startswith("http://") or image_value.startswith("https://"):
-            try:
-                return self._asset_from_remote_url(image_value)
-            except Exception:
-                file_name = self._guess_filename_from_url(image_value, "generated-image.png")
-                return GeneratedImageAsset(
-                    url=image_value,
-                    mime_type=DEFAULT_IMAGE_MIME_TYPE,
-                    file_name=file_name,
-                    file_size=0,
-                    source_url=image_value,
-                )
+            file_name = self._guess_filename_from_url(image_value, "generated-image.png")
+            return GeneratedImageAsset(
+                url=image_value,
+                mime_type=DEFAULT_IMAGE_MIME_TYPE,
+                file_name=file_name,
+                file_size=0,
+                source_url=image_value,
+            )
 
         return None
 
@@ -282,25 +279,6 @@ class ImageGenerationClient:
             mime_type=mime_type,
             file_name=f"generated-image.{self._extension_for_mime_type(mime_type)}",
             file_size=len(binary),
-        )
-
-    def _asset_from_remote_url(self, image_url: str) -> GeneratedImageAsset:
-        response = requests.get(image_url, timeout=(10, 180))
-        response.raise_for_status()
-
-        mime_type = self._resolve_mime_type(response.headers.get("Content-Type"))
-        encoded = base64.b64encode(response.content).decode("utf-8")
-        file_name = self._guess_filename_from_url(
-            image_url,
-            f"generated-image.{self._extension_for_mime_type(mime_type)}",
-        )
-        return GeneratedImageAsset(
-            base64=f"data:{mime_type};base64,{encoded}",
-            url=image_url,
-            mime_type=mime_type,
-            file_name=file_name,
-            file_size=len(response.content),
-            source_url=image_url,
         )
 
     def _resolve_mime_type(self, raw_content_type: Any) -> str:

@@ -127,6 +127,21 @@ function startPythonBackend() {
 const pendingRequests = new Map();
 let requestIdCounter = 1;
 
+const DEFAULT_IPC_TIMEOUT_MS = 30_000;
+const LONG_RUNNING_IPC_TIMEOUT_MS = 365 * 60 * 60 * 1000;
+
+function getIPCRequestTimeout(channel) {
+  const longRunningChannels = new Set([
+    "models_config.generate_image",
+    "workflow.update",
+    "runtime_logs.record",
+  ]);
+
+  return longRunningChannels.has(channel)
+    ? LONG_RUNNING_IPC_TIMEOUT_MS
+    : DEFAULT_IPC_TIMEOUT_MS;
+}
+
 /**
  * 发送请求到 Python 并等待响应
  */
@@ -143,7 +158,7 @@ function sendToPython(channel, payload) {
     const timeout = setTimeout(() => {
       pendingRequests.delete(id);
       reject(new Error(`IPC 请求超时: ${channel}`));
-    }, 30000);
+    }, getIPCRequestTimeout(channel));
 
     // 保存 Promise 解析函数
     pendingRequests.set(id, { resolve, reject, timeout });

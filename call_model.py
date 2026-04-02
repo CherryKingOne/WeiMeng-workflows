@@ -16,14 +16,14 @@ data = {
                         "image": f"data:image/png;base64,{img_base64}"
                     },
                     {
-                        "text": "将衣服变为粉色"
+                        "text": "根据图片中的样式生成春夏秋冬四个季节，和对应配套的衣服"
                     }
                 ]
             }
         ]
     },
     "parameters": {
-        "n": 1,
+        "n": 4,
         "negative_prompt": " ",
         "prompt_extend": True,
         "watermark": False,
@@ -35,7 +35,7 @@ response = requests.post(
     'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
     headers={
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer 5'
+        'Authorization': 'Bearer sk-****'
     },
     json=data
 )

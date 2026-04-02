@@ -95,6 +95,15 @@ MODEL_PARAMETER_SPEC = {
 }
 
 
+def _normalize_output_image_count(value: Any) -> int:
+    try:
+        image_count = int(value)
+    except (TypeError, ValueError):
+        image_count = 1
+
+    return max(1, min(image_count, 6))
+
+
 def build_multimodal_generation_request(
     *,
     model_id: str,
@@ -102,12 +111,22 @@ def build_multimodal_generation_request(
     parameters: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the official DashScope multimodal generation payload."""
+    raw_parameters = parameters if isinstance(parameters, dict) else {}
+    normalized_parameters: dict[str, Any] = {
+        "n": _normalize_output_image_count(raw_parameters.get("n")),
+        "negative_prompt": " ",
+        "prompt_extend": True,
+        "watermark": False,
+    }
+    size = raw_parameters.get("size")
+    if isinstance(size, str) and size.strip():
+        normalized_parameters["size"] = size.strip()
+
     payload: dict[str, Any] = {
         "model": model_id,
         "input": {
             "messages": messages,
         },
+        "parameters": normalized_parameters,
     }
-    if parameters:
-        payload["parameters"] = parameters
     return payload
