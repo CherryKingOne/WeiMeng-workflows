@@ -29,28 +29,16 @@
  * ============================================================================
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTheme } from "@/features/theme/theme-context";
 import { selectFile, readFileAsBase64, type FileBase64Result } from "@/core/api";
 import { EditableCardName, getCardNameValue, NODE_NAME_DATA_KEY } from "./editable-card-name";
-
-// 弧形菜单工具项
-const arcMenuTools = [
-  { id: "image-generation", icon: "sparkles", label: "图像生成" },
-  { id: "film", icon: "film", label: "视频" },
-  { id: "layout-grid", icon: "layout-grid", label: "网格" },
-  { id: "scissors", icon: "scissors", label: "裁剪" },
-];
 
 // Lucide 图标组件
 function LucideIcon({ name, className }: { name: string; className?: string }) {
   const iconPaths: Record<string, string> = {
     x: "M18 6L6 18M6 6l12 12",
     plus: "M12 5v14M5 12h14",
-    sparkles: "M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z",
-    film: "M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9",
-    "layout-grid": "M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z",
-    scissors: "M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 11-4.243 4.243 3 3 0 014.243-4.243zm0-11.515a3 3 0 11-4.243 4.243 3 3 0 014.243-4.243z",
   };
 
   return (
@@ -118,10 +106,9 @@ export function ImageInputCard({
 }: ImageInputCardProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const cardRef = useRef<HTMLDivElement>(null);
 
-  // 卡片状态：default - 默认态, interactive - 交互态（显示+按钮）, expanded - 展开态（显示工具组）
-  const [status, setStatus] = useState<"default" | "interactive" | "expanded">("default");
+  // 卡片状态：default - 默认态, interactive - 交互态（显示右侧连接按钮）
+  const [status, setStatus] = useState<"default" | "interactive">("default");
   const [imageData, setImageData] = useState<FileBase64Result | null>(() => parseImageData(data?.imageData));
   const [isLoading, setIsLoading] = useState(false);
   const cardName = getCardNameValue(data, "上传文件");
@@ -144,19 +131,10 @@ export function ImageInputCard({
     }
   }, [status]);
 
-  // 处理点击+按钮 - 展开工具组
-  const handleExpandTools = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setStatus("expanded");
-  }, []);
-
-  // 处理点击卡片其他区域 - 收起工具组
+  // 处理点击卡片
   const handleCardClick = useCallback(() => {
-    if (status === "expanded") {
-      setStatus("interactive");
-    }
     onFocus?.(id);
-  }, [id, onFocus, status]);
+  }, [id, onFocus]);
 
   // 处理拖拽开始
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -194,9 +172,6 @@ export function ImageInputCard({
 
   // 获取边框样式
   const getBorderStyle = () => {
-    if (status === "expanded") {
-      return "border-2 border-neutral-500 shadow-[0_0_20px_rgba(255,255,255,0.05)]";
-    }
     if (status === "interactive") {
       return "border border-neutral-700";
     }
@@ -205,7 +180,6 @@ export function ImageInputCard({
 
   return (
     <div
-      ref={cardRef}
       className="cursor-grab"
       onMouseDown={handleMouseDown}
       onMouseLeave={handleMouseLeave}
@@ -219,7 +193,7 @@ export function ImageInputCard({
         className="mb-2 bg-transparent text-[12px] text-neutral-400 outline-none"
       />
 
-      {/* 主卡片 - 使用 overflow-visible 允许弧形菜单超出边界 */}
+      {/* 主卡片 */}
       <div
         className={`relative w-[320px] aspect-square ${
           isDark ? "bg-[#18191c]" : "bg-white"
@@ -294,17 +268,19 @@ export function ImageInputCard({
           </>
         )}
 
-        {/* 弧形菜单 - 交互态显示+按钮，展开态显示工具组 */}
-        {(status === "interactive" || status === "expanded") && (
+        {/* 右侧连接按钮 */}
+        {status === "interactive" && (
           <div className="absolute right-0 top-1/2 -translate-y-1/2">
-            {/* 主按钮 - 加号（支持点击展开和拖拽连接） */}
             <button
               className={`absolute left-0 top-1/2 w-10 h-10 -translate-x-1/2 -translate-y-1/2 cursor-grab ${
                 isDark ? "bg-[#18191c] border-neutral-500" : "bg-white border-gray-400"
               } border rounded-full flex items-center justify-center ${
                 isDark ? "text-white" : "text-gray-900"
               } shadow-xl z-20`}
-              onClick={handleExpandTools}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFocus?.(id);
+              }}
               onMouseDown={(e) => {
                 // 如果按住拖拽，则开始连接线拖拽
                 if (onConnectionDragStart) {
@@ -315,36 +291,6 @@ export function ImageInputCard({
             >
               <LucideIcon name="plus" className="w-6 h-6" />
             </button>
-
-            {/* 弧形图标组 - 仅展开态显示 */}
-            {status === "expanded" && (
-              <div className="absolute left-12 top-1/2 flex -translate-y-1/2 flex-col gap-2.5">
-                {arcMenuTools.map((tool, index) => (
-                  <button
-                    key={tool.id}
-                    className={`w-9 h-9 ${
-                      isDark
-                        ? "bg-[#2a2d32] border-neutral-800 text-neutral-400 hover:text-white hover:bg-[#3a3d42]"
-                        : "bg-gray-100 border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-200"
-                    } border rounded-full flex items-center justify-center transition-all`}
-                    style={{
-                      transform: `translateX(${index === 0 || index === 3 ? 0 : 16}px)`,
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // 点击图像生成按钮时创建新卡片
-                      if (tool.id === "image-generation") {
-                        onAddConnectedCard?.("image-generation", { x: 350, y: -46 });
-                      }
-                      // TODO: 实现其他工具点击逻辑
-                    }}
-                    title={tool.label}
-                  >
-                    <LucideIcon name={tool.icon} className="w-4 h-4" />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         )}
       </div>

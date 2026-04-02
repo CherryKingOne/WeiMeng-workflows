@@ -653,7 +653,7 @@ export function ImageGenerationCard({
 
       {!isCollapsed ? (
         <div
-          className="relative flex h-[392px] w-[520px] flex-col justify-between overflow-visible rounded-2xl border border-white/10 bg-[#18181b] p-4 shadow-2xl"
+          className="relative flex h-[392px] w-[560px] flex-col justify-between overflow-visible rounded-2xl border border-white/10 bg-[#18181b] p-4 shadow-2xl"
           onClick={handleCardClick}
         >
           <div className="absolute -left-[5px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-gray-500" />
@@ -693,51 +693,23 @@ export function ImageGenerationCard({
           />
 
           <div className="flex flex-col gap-3">
-            <div
-              className="group flex w-max cursor-pointer items-center gap-1"
-              onMouseDown={stopPropagation}
-              onClick={handleUtilityButtonClick}
-            >
-              <span className="text-sm font-medium text-[#e4e4e7] transition group-hover:text-white">
-                常用提示词库
-              </span>
-              <LucideIcon
-                name="chevron-right"
-                className="h-3.5 w-3.5 text-[#a1a1aa] transition group-hover:text-white"
-              />
-            </div>
-
-            {modelHintText ? (
-              <div
-                className={`rounded-lg border px-3 py-2 text-xs leading-5 ${
-                  modelsError
-                    ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
-                    : "border-amber-500/20 bg-amber-500/10 text-amber-200"
-                }`}
-                onMouseDown={stopPropagation}
-                onClick={stopPropagation}
-              >
-                {modelHintText}
-              </div>
-            ) : null}
-
             <div className="flex items-center gap-2.5">
-              <div className="relative flex-1" ref={modelMenuRef}>
+              <div className="relative" ref={modelMenuRef}>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-[#121214] px-4 py-2 text-sm text-gray-200"
+                  className="flex w-[180px] items-center justify-between rounded-lg border border-white/10 bg-[#121214] px-4 py-2 text-sm text-gray-200"
                   onMouseDown={stopPropagation}
                   onClick={handleToggleModelMenu}
                 >
                   <span className="truncate">{selectedModelConfig?.display_name ?? selectedModel}</span>
-                  <svg className={`h-3.5 w-3.5 text-[#71717a] transition-transform ${isModelMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`ml-2 h-3.5 w-3.5 shrink-0 text-[#71717a] transition-transform ${isModelMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
 
                 {isModelMenuOpen ? (
                   <div
-                    className="absolute left-0 top-full z-30 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                    className="absolute left-0 top-full z-30 mt-2 min-w-[280px] overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
                     onMouseDown={stopPropagation}
                     onClick={stopPropagation}
                   >
@@ -949,41 +921,27 @@ export function ImageGenerationCard({
           </div>
         </div>
       ) : (
-        <div className="relative flex w-[520px] flex-col gap-2" onClick={handleCardClick}>
+        <div className="relative flex w-[560px] flex-col gap-2" onClick={handleCardClick}>
           <div className="absolute -left-[5px] top-8 z-20 h-2.5 w-2.5 rounded-full bg-gray-500" />
 
           <div className="relative z-10 flex flex-col rounded-2xl border border-white/10 bg-[#18181b] p-3 shadow-xl">
-            {modelHintText ? (
-              <div
-                className={`mb-2 rounded-lg border px-3 py-2 text-xs leading-5 ${
-                  modelsError
-                    ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
-                    : "border-amber-500/20 bg-amber-500/10 text-amber-200"
-                }`}
-                onMouseDown={stopPropagation}
-                onClick={stopPropagation}
-              >
-                {modelHintText}
-              </div>
-            ) : null}
-
             <div className="flex items-center gap-2.5">
-              <div className="relative flex-1" ref={modelMenuRef}>
+              <div className="relative" ref={modelMenuRef}>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-[#121214] px-4 py-2 text-sm text-gray-200"
+                  className="flex w-[180px] items-center justify-between rounded-lg border border-white/10 bg-[#121214] px-4 py-2 text-sm text-gray-200"
                   onMouseDown={stopPropagation}
                   onClick={handleToggleModelMenu}
                 >
                   <span className="truncate">{selectedModelConfig?.display_name ?? selectedModel}</span>
-                  <svg className={`h-3.5 w-3.5 text-[#71717a] transition-transform ${isModelMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`ml-2 h-3.5 w-3.5 shrink-0 text-[#71717a] transition-transform ${isModelMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
 
                 {isModelMenuOpen ? (
                   <div
-                    className="absolute left-0 top-full z-30 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
+                    className="absolute left-0 top-full z-30 mt-2 min-w-[280px] overflow-hidden rounded-xl border border-white/10 bg-[#121214] shadow-2xl"
                     onMouseDown={stopPropagation}
                     onClick={stopPropagation}
                   >
